@@ -1,0 +1,602 @@
+---
+title: "Topic Model: Clasificación de Documentos"
+author: "UOC - Master BI - Business Analytics (Nombre Estudiante)"
+date: "Abril del 2018"
+output:
+  html_document:
+    fig_height: 5
+    fig_width: 7
+    number_sections: yes
+    theme: journal
+    toc: yes
+    toc_depth: 2
+  pdf_document:
+    toc: yes
+  word_document: default
+---
+
+******
+# Base teórica
+******
+
+Esta práctica se basa en una de las aplicaciones de la **Minería de Textos**, que consiste en poder clasificar documentos en función de su temática. Esto es lo que se conoce como **Topic Model**. Para realizar la clasificación utilizaremos el algoritmo de aprendizaje automático K-Nearest Neighbors (K-NN).  
+
+Por Topic Model entendemos procesos de aprendizaje automático que tienen por objetivo descubrir el tema subyacente en una colección de documentos. Generalizando un poco más, Topic Model busca patrones en el contenido de los documentos y lo hace en base a la frecuencia de aparición de palabras.  
+
+El análisis que planteamos se basa en el hecho de que en documentos pertenecientes a un mismo tema aparecerán palabras que se repetirán con mayor frecuencia. Por lo tanto, el análisis que presentamos plantea la clasificación de documentos utilizando como criterio las palabras que son más frecuentes en cada temática. Estas frecuencias se almacenarán en una matriz de datos que será la base para que puedan trabajar los algoritmos de aprendizaje automático, que en esta práctica se centran en el K-NN.  
+
+En este ámbito de conocimiento se basan los sistemas de clasificación documental, búsqueda de contenidos y sistemas de recomendación entre otros.
+
+**Recursos en la web:**  
+
+* [Journal Digital: Topic Modeling](http://journalofdigitalhumanities.org/2-1/topic-modeling-a-basic-introduction-by-megan-r-brett/)  
+* [Wikipedia: Topic Modeling](http://en.wikipedia.org/wiki/Topic_model)  
+* [Wikipedia: Sistemas de recomendación](http://es.wikipedia.org/wiki/Sistema_de_recomendaci%C3%B3n)  
+* [CRAN: Text Mining Package](http://cran.r-project.org/web/packages/tm/tm.pdf)  
+
+
+******
+# Caso de estudio
+******
+El objetivo es clasificar un conjunto de artículos de Reuters correspondientes a distintas temáticas: acquire (acq),
+crude, earn, grain, interest, money-fx, ship y trade. Se trata de temáticas relacionadas con inversiones financieras y fondos de inversión.  
+
+Se utiliza un sistema de clasificación de documentos que se basa en el algoritmo de aprendizaje automático K-NN (K-Nearest Neighbors o K vecinos más próximos).    
+
+Los datos están en el fichero data_reuter.txt. Este fichero contiene dos campos, el primero se corresponde con el tipo de temática (en total hay 8) y el segundo campo contiene el artículo relacionado. Entre las 8 temáticas se seleccionan 2 para realizar el análisis.
+
+Para mostrar el funcionamiento del algoritmo de clasificación se utiliza un 70% de los artículos para entrenar el modelo de aprendizaje. Dicho algoritmo se aplica sobre el 30% de artículos restantes con el objetivo de predecir su temática.
+
+******
+# Apartados de la práctica
+******
+El código R que utilizaremos en la práctica se divide en apartados según las tareas que iremos realizando:  
+
+* Lectura y selección de los datos  
+* Creación del corpus, limpieza y acondicionado del texto 
+* Generación de la Matriz de Términos (TDM-Terms Data Matrix).  
+* Creación de la TDM.  
+     + Subselecciones sobre TDM.  
+* Descripción de la TDM.
+* Creación de un data.frame apto para K-NN.  
+* Construcción del Modelo de Clasificación.  
+* Validación del Modelo de Clasificación.  
+
+******
+# Inicialización de variables
+******
+Instalamos los packages de R que necesitaremos para realizar la práctica:
+
+* install.packages("tm")
+* install.packages("plyr")
+* install.packages("class")
+* install.packages("ggplot2")
+* install.packages("SnowballC")
+* install.packages("wordcloud")
+
+Definimos el directorio de trabajo donde tendremos guardado el fichero de datos.
+* setwd("ruta")
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+## Cargamos los paquetes necesarios para ejecutar las funciones que se describen a continuación:
+# Para la función Corpus()
+library(tm)
+# Para la función rbind.fill
+library(plyr)
+# Para la función knn()
+library(class)
+
+# En R una variable tipo factor es una variable categórica que puede contener tanto números como carácteres. Se trata de un tipo de variable muy útil para realizar tareas de modelización estadística.
+
+# En R, por defecto, las columnas con carácteres no numéricos son tratadas como factores. Para evitarlo y garantizar que estas columnas sigan siendo consideradas carácteres, fijaremos el siguiente parámetro
+options(stringsAsFactors = FALSE)
+
+# Leemos los datos
+data <- read.table('data_reuter.txt', header=FALSE, sep='\t')
+# Describimos los datos
+## Cuantos hay en total
+nrow(data)
+# Cuantos hay para cada tipo de temática
+table(data$V1)
+
+library(ggplot2)
+qplot(data$V1,xlab="Tematica", main = "Frecuencias")
+
+# Finalmente seleccionamos dos temáticas: acq y earn
+data2<-data[which(data$V1 %in% c("acq","earn")),]
+## Cuantos hay en total
+nrow(data2)
+```
+
+******
+# Creación del corpus, limpieza y acondicionado del texto.
+******
+A continuación creamos un corpus para cada temática sobre los que se realizarán las siguietes tareas de **acondicionado de texto**:  
+
+1. Eliminar signos de puntuación.  
+2. Eliminar espacios en blanco innecesarios.  
+3. Convertir todo el texto a minúsculas.  
+4. Eliminar palabras sin significado propio.  
+5. Eliminar números.  
+6. Substituir las palabras derivadas por su palabra raíz.  
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# Creación del corpus de la temática acq
+## Seleccionamos la temática
+data_acq<-data2[(data2$V1=="acq"),]
+## Construimos el corpus
+source <- VectorSource(data_acq$V2)
+corpus1 <- Corpus(source)
+## Acondicionamos el corpus
+### Convertir todo el texto a minúsculas
+corpus1 <- tm_map(corpus1, content_transformer(tolower))
+### Elimina números
+corpus1 <- tm_map(corpus1, removeNumbers)
+### Eliminar signos de puntuación
+corpus1 <- tm_map(corpus1, removePunctuation)
+###Eliminar espacios en blanco innecesarios
+corpus1 <- tm_map(corpus1, stripWhitespace)
+### Eliminar palabras sin significado propio
+v_stopwords <- c(stopwords("english"),c("dont","didnt","arent","cant","one","also","said"))
+corpus1 <- tm_map(corpus1, removeWords, v_stopwords)
+### Eliminar signos de puntuación
+corpus1 <- tm_map(corpus1, removePunctuation)
+### Substituir las palabras derivadas por su palabra raíz
+corpus1 <- tm_map(corpus1, stemDocument, language="english")
+
+# Creación del corpus de la temática earn
+## Seleccionamos la temática
+data_earn<-data2[(data2$V1=="earn"),]
+## Construimos el corpus
+source <- VectorSource(data_earn$V2)
+corpus2 <- Corpus(source)
+## Acondicionamos el corpus
+corpus2 <- tm_map(corpus2, content_transformer(tolower))
+corpus2 <- tm_map(corpus2, removeNumbers)
+corpus2 <- tm_map(corpus2, removePunctuation)
+corpus2 <- tm_map(corpus2, stripWhitespace)
+v_stopwords <- c(stopwords("english"),c("dont","didnt","arent","cant","one","also","said"))
+corpus2 <- tm_map(corpus2, removeWords, v_stopwords)
+corpus2 <- tm_map(corpus2, removePunctuation)
+corpus2 <- tm_map(corpus2, stemDocument, language="english")
+```
+******
+# Generación de la Matriz de Términos (TDM-Terms Data Matrix)
+******
+A continuación construimos una matriz de términos para cada temática para posteriormete unirlas en una misma lista.
+
+```{r,eval=TRUE,echo=TRUE,warning=TRUE, message=FALSE}
+# Construimos la matrix de documentos de la temática acq
+mat_acq <- TermDocumentMatrix(corpus1)
+## Controlamos la dispersión (Sparsity): Número de celdas igual a cero respecto al total.
+mat_acq<- removeSparseTerms(mat_acq,  0.85)
+inspect(mat_acq)
+mat_acq<-list(name="acq",mat=mat_acq)
+mat_acq
+str(mat_acq)
+
+# Construimos la matrix de documentos de la temática earn
+mat_earn <- TermDocumentMatrix(corpus2)
+mat_earn<- removeSparseTerms(mat_earn,  0.85)
+inspect(mat_earn)
+mat_earn<-list(name="earn",mat=mat_earn)
+mat_earn
+str(mat_earn)
+
+# Juntamos ambas matrices de términos en una misma lista
+mat<-list(mat_acq, mat_earn)
+str(mat)
+```
+
+
+******
+## Visualizaciones sobre la matriz de palabras TDM  
+******  
+Con las dos matrices de frecuencias `mat[[1]]$mat` para acq y `mat[[2]]$mat` para earn, podemos realizar algunas visualizaciones básicas.  
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# Frecuencia de los 25 primeros términos en los 10 primeros documentos para ambos temas
+inspect(mat[[1]]$mat[1:25,1:10])
+inspect(mat[[2]]$mat[1:25,1:10])
+# Frecuencia de los 30 primeros términos en todos los documentos del tema acq
+inspect(mat[[1]]$mat[1:30,])
+# Frecuencia de los términos en los documentos del tema earn
+inspect(mat[[2]]$mat)
+# Inventario de los primeros términos del del tema earn
+head(mat[[2]]$mat$dimnames$Terms)
+# Número de documentos del tema acq
+nDocs(mat[[1]]$mat)
+# Número de términos del tema acq
+nTerms(mat[[1]]$mat)
+# Visualizamos los términos con más de 100 apariciones en documentos de temática acq
+findFreqTerms(mat[[1]]$mat, lowfreq=100)
+```
+
+******
+# Descripción de la TDM.
+******
+
+******
+## Representación gráfica de las frecuencias
+******
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# Para acq
+mmat_acq <- as.matrix(mat[[1]]$mat)
+# Agregamos las frecuencias por términos y las ordenamos de mayor a menor  
+v_acq <- sort(rowSums(mmat_acq), decreasing=TRUE)
+# Creamos un data.frame con términos y frecuencias
+d_acq <- data.frame(word=names(v_acq), freq=v_acq)
+d_acq[,3]<-"acq"
+# Hacemos lo mismo para earn
+mmat_earn <- as.matrix(mat[[2]]$mat)
+# Agregamos las frecuencias por términos y las ordenamos de mayor a menor  
+v_earn <- sort(rowSums(mmat_earn), decreasing=TRUE)
+# Creamos un data.frame con términos y frecuencias
+d_earn <- data.frame(word=names(v_earn), freq=v_earn)
+d_earn[,3]<-"earn"
+
+# Concatenamos las dos matrices
+fdata<-rbind(d_acq,d_earn)
+colnames(fdata)
+colnames(fdata)<-c("Palabra", "Frecuencia", "Tematica")
+
+# Gráfico de barras con las palabras más frecuentes
+library(ggplot2)
+
+ggplot(subset(fdata, Frecuencia>500),aes(Palabra,Frecuencia,fill=Tematica))+geom_bar(stat="identity",position=position_dodge())+theme(axis.text.x=element_text(angle=45, hjust=1))
+```
+
+******
+## Construcción de una nube de palabras
+******
+Construiremos una nube de palabras para la matriz de términos con ambas temáticas.  
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# Cargamos la librería wordcloud
+require(wordcloud)
+# Construimos la nube de palabras o términos, para ello primero seleccionamos los que tienen una frecuencia superior a 500
+sfdata<-subset(fdata, Frecuencia>500)
+wordcloud(sfdata$Palabra, fdata$Frecuencia,min.freq=500,random.color=FALSE, colors=rainbow(3))
+
+```
+
+******
+# Creación de un data.frame apto para K-NN
+******
+A continuación se construirá un data.frame en el que las columnas representan Términos, las filas Documentos y las celdas Frecuencias del término o palabra en cada documento.  
+
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# Creación de un data.frame apto para K-NN
+# Para acq
+s.mat_acq <- t(data.matrix(mat[[1]]$mat))
+# La convertimos en data.frame que vendría a ser como un formato excel (filas, columnas y celdas con valores)  
+# En este data.frame, tenemos que cada fila es un documento, cada columna una palabra y las celdas contienen la frecuencia en que cada palabra aparece en cada documento.
+s.df_acq <- as.data.frame(s.mat_acq, stringsAsFactors = FALSE)
+nrow(s.df_acq)
+# En la última columna colocaremos el Tema de cada documento tdm[["name"]. Para ello usaremos dos funciones cbind() y rep()  
+
+# Recordemos que en la lista TDM habíamos almacenado el tema en el valor "name"
+# Mediante la función rep() repetiremos el tema del documento tantas veces como filas hay en el data.frame 
+Tema <- rep(mat[[1]]$name, nrow(s.df_acq))
+s.df_acq<-cbind(s.df_acq,Tema)
+
+# Para earn
+s.mat_earn <- t(data.matrix(mat[[2]]$mat))
+# La convertimos en data.frame que vendría a ser como un formato excel (filas, columnas y celdas con valores)  
+# En este data.frame , tenemos que cada fila es un documento, cada columna una palabra y las celdas contienen la frecuencia en que cada palabra aparece en cada documento.
+s.df_earn <- as.data.frame(s.mat_earn, stringsAsFactors = FALSE)
+# En la última columna colocaremos el Tema de cada documento tdm[["name"]. Para ello usaremos dos funciones cbind() y rep()  
+
+# Recordemos que en la lista TDM habíamos almacenado el tema en el valor "name"
+# Mediante la función rep() repetiremos el tema del documento tantas veces como filas hay en el data.frame 
+Tema <- rep(mat[[2]]$name, nrow(s.df_earn))
+s.df_earn<-cbind(s.df_earn,Tema)
+
+# Utilizamos la función rbind.fill() para concatenar las filas de dos data frame con distinta dimensión y pone NA en las casillas donde no hay información.
+pila <-rbind.fill(s.df_acq, s.df_earn)
+pila[is.na(pila)] <- 0
+
+# Cada fila representa un documento, cada columna una palabra y las celdas son la frecuencia de aparición de esa palabra en ese documento.
+## Tenemos 4436 documentos 
+nrow(pila)
+## Tenemos 48 palabras
+ncol(pila)
+```
+
+
+******
+## Construcción del Modelo de clasificación
+******
+Construimos un **juego de datos de entrenamiento** con el 70% de los documentos, es decir, 3106 documentos.    
+Así mismo construiremos un **juego de datos de pruebas** con el 30% de documentos restante, es decir 1330 documentos.  
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# Fijamos una semilla para poder repetir la práctica obteniendo los mismos resultados. 
+set.seed(111)
+
+# 70% de los documentos para entrenamiento
+entrena.idx <- sample(nrow(pila), ceiling(nrow(pila) * 0.7))
+# El resto de documentos para pruebas
+test.idx <- (1:nrow(pila))[-entrena.idx]
+```
+
+
+Para poder aplicar el algoritmo de aprendizaje por vecindad K-NN necesitamos realizar unas pequeñas adaptaciones.  
+Éstas consisten en separar por un lado los temas y por otro la matriz de frecuencias.  
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# guardamos por un lado los temas
+tema <- pila[, "Tema"]
+# y por otro lado el resto de palabras
+pila.nl <- pila[, !colnames(pila) %in% "Tema"]
+```
+
+**Aplicamos el modelo K-NN**, pasándole como parámetros la matriz de frecuencias de los documentos de entrenamiento, la matriz de frecuencias de los documentos de pruebas y los temas de los documentos de entrenamiento.  
+
+Los temas de los documentos de prueba no se los pasamos, porque precisamente es lo que el algoritmo debe predecir.  
+
+Recordamos que **el objetivo del modelo será el de predecir el tema de los documentos de pruebas**.  
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# Modelo KNN
+knn.pred <- knn(pila.nl[entrena.idx, ], pila.nl[test.idx, ], tema[entrena.idx])
+```
+
+******
+# Validación del Modelo de clasificación
+******
+
+Una vez aplicado el modelo K-NN sobre el juego de documentos de prueba, podemos utilizar una **matriz de confusión** para valorar el nivel de acierto del modelo.  
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# Modelo KNN
+knn.pred <- knn(pila.nl[entrena.idx, ], pila.nl[test.idx, ], tema[entrena.idx])
+# Matriz de confusión
+# Las filas son predicciones y las columnas son observaciones reales
+conf.mat <- table("Predicción" = knn.pred,"Real" = tema[test.idx])
+conf.mat
+```
+Observamos como K-NN, de los 1330 documentos, ha clasificado correctamente 1292:  
+
+* 459 documentos como acq. 
+* 833 documentos como earn.  
+
+y ha fallado en 38 documentos, puesto que los ha clasificado 8 como acq cuando en realidad eran earn y 30 como earn que en reladad eran acq.  
+
+Como **medida de precisión** del algoritmo, podemos tomar la suma de la diagonal de la matriz de confusión (clasificaciones acertadas), dividido por el número de documentos de prueba.  
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# Medida de precisión
+ratio <- sum(diag(conf.mat))/length(test.idx)*100
+ratio
+```
+Observamos como K-NN ha superado el 95% de acierto.  
+
+Una medida alternativa para validar el modelo de clasificación es:
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+ratio2 <- (conf.mat[1,1]/(conf.mat[1,1]+conf.mat[1,2]))*100
+ratio2
+```
+******
+# Ejercicios
+******
+
+
+## Ejercicio 1:
+En el apartado 6.1 se muestron algunos ejemplos de visualización de distintas secciones de la matriz de términos. Visualizad los 5 primeros términos y los 5 primeros documentos en la temática "earn". Posteriormente visualizar aquellas palabras relacionadas con esta misma temática y con frecuencia mayor a 10.
+
+## Respuesta 1:
+> Usamos las funciones inspect y finddfreqterms, en la primera funcion mostramos de la matriz la dimension dos y los elementos de 1:5 de los documentos de 1:5, posteriormente buscamos dentro de la segunda dimension los que tengan una frecuencia de mas de 10
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+inspect(mat[[2]]$mat[1:5,1:5])
+findFreqTerms(mat[[2]]$mat, lowfreq=10)
+```
+
+## Ejercicio 2:
+En el apartado 6, uno los resultados obtenidos tras inspeccionar el corpus es lo que se denomita "Sparsity". Concretamente para la matriz de términos "mat_acq" se obtiene un valor del 74%. Describid detalladamente como se ha calculado dicho valor.
+
+## Respuesta 2:
+> Primero hay que entender que es un termino sparse, estos son los terminos considerados nulos, despues se divide el numero de elementos de la matriz entre el numero de elementos sparse.
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# Pon aquí los comandos de R en caso de ser necesario.
+
+
+```
+
+## Ejercicio 3:
+En el apartado 7.1 se construye un gráficos de barras con las palabras con una frecuencia mayor que 100 en ambas temáticas. ¿Qué función tiene la opción "position=position_dodge()"?. 
+Construya un gráfico de barras distinto para cada temática eliminando la leyenda relacionada con el tipo de temática, dado que ahora no es necesaria.
+
+## Respuesta 3: 
+> La opcion position=position_dodge(), se usa para que los resultados de las diferentes tematicas para una misma palabra no se superpongan y se pongan paralelas.
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# Pon aquí los comandos de R en caso de ser necesario.
+df_acq <- d_acq
+colnames(df_acq) <- c("Palabra", "Frecuencia", "Tematica")
+ggplot(subset(df_acq, Frecuencia>500),aes(Palabra,Frecuencia))+geom_bar(stat="identity",position=position_dodge(),colour='green')+theme(axis.text.x=element_text(angle=45, hjust=1))
+
+```
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# Pon aquí los comandos de R en caso de ser necesario.
+
+df_earn <- d_earn
+colnames(df_earn) <- c("Palabra", "Frecuencia", "Tematica")
+ggplot(subset(df_earn, Frecuencia>500),aes(Palabra,Frecuencia))+geom_bar(stat="identity",position=position_dodge(),colour='blue')+theme(axis.text.x=element_text(angle=45, hjust=1))
+
+```
+
+
+
+## Ejercicio 4: 
+En el apartado 9 se presenta la matriz de confusión del modelo generado. De esta matriz se extrae un ratio. Se supone que la categoría de referencia o "verdadera" es acq. Determinad que ratio (ratio2) hemos calculado y obtened otro alternativo. Interpretad los resultados.
+
+## Respuesta 4: 
+> La matriz de confusion es usada para la evaluacion de los algoritmos de clasificacion, esta muestra el numero de falsos positivos y verdaderos positivos. Por ejemplo en la nuestra, para acq 459 son los verdaderos positivos mientras que el numero de debajo 30 son los falsos negativos. El ratio simplemente muestra el porcentaje de clasificaciones correctas, es una formula de precision.
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# Pon aquí los comandos de R en caso de ser necesario.
+# Recall = TP/TP+FN
+# Calculamos el Recall
+recall <- conf.mat[1,1]/conf.mat[1,1]+conf.mat[2,1]
+recall
+
+```
+
+
+## Ejercicio 5: 
+En el apartado 8.1 se utiliza la función "knn" para clasificar los documentos según temática. Esta función por defecto supone que el número de vecinos a evaluar es igual a 1. Valorad los resultados del algoritmo K-NN utilizando distinto número de vecinos, por ejemplo, 2, 4, y 8. 
+
+## Respuesta 5: 
+> Pasamos por funcion el numero de vecinos que buscamos. Todos tienen una precision alta, pero como se puede ver, es cercana a nuestro resultado anterior por lo tanto no resulta demasiado relevante el cambiar esa propiedad debido a que el cambio no es muy alto.
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# Pon aquí los comandos de R en caso de ser necesario.
+
+
+knn.pred2 <- knn(pila.nl[entrena.idx, ], pila.nl[test.idx, ], tema[entrena.idx], k = 2)
+conf.mat2 <- table("Predicción" = knn.pred2,"Real" = tema[test.idx])
+conf.mat2
+
+ratio2 <- sum(diag(conf.mat2))/length(test.idx)*100
+ratio2
+
+knn.pred4 <- knn(pila.nl[entrena.idx, ], pila.nl[test.idx, ], tema[entrena.idx], k = 4)
+conf.mat4 <- table("Predicción" = knn.pred4,"Real" = tema[test.idx])
+conf.mat4
+
+ratio4 <- sum(diag(conf.mat4))/length(test.idx)*100
+ratio4
+
+knn.pred8 <- knn(pila.nl[entrena.idx, ], pila.nl[test.idx, ], tema[entrena.idx], k = 8)
+conf.mat8 <- table("Predicción" = knn.pred8,"Real" = tema[test.idx])
+conf.mat8
+
+ratio8 <- sum(diag(conf.mat8))/length(test.idx)*100
+ratio8
+
+knn.pred3 <- knn(pila.nl[entrena.idx, ], pila.nl[test.idx, ], tema[entrena.idx], k = 3)
+conf.mat3 <- table("Predicción" = knn.pred8,"Real" = tema[test.idx])
+conf.mat3
+
+ratio3 <- sum(diag(conf.mat8))/length(test.idx)*100
+ratio3
+```
+
+## Ejercicio 6: 
+Del fichero inicial seleccionar las temáticas "interest","trade" y entrenar un k-NN que permita clasificar nuevos artículos en una de ambas temáticas. Describid el proceso detalladamente. ¿Podría explicar de forma detallada como realiza la clasificación el algoritmo?
+
+## Respuesta 6: 
+> El algoritmo KNN es un algortimo sencillo, en el que busca los vecinos mas proximos a K y clasifica K como la mayoria de sus vecinos mas cercanos, utiliza la distancia vectorial, euclidea, para determinar sus vecinos mas cercanos.
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# Leemos los ficheros otra vez, no seria necesario, pero por tomarlo como un ejercicio aparte lo haremos asi
+data <- read.table('data_reuter.txt', header=FALSE, sep='\t')
+#Seleccionamos los temas que nos interesan
+data2<-data[which(data$V1 %in% c("interest","trade")),]
+# Seleccionamos la tematica de interest para determinar el corpus
+data_interest<-data2[(data2$V1=="interest"),]
+# Construimos el corups
+source <- VectorSource(data_interest$V2)
+corpus1 <- Corpus(source)
+# Para limpiar el corpus pasamos a minusculas todos los textos
+corpus1 <- tm_map(corpus1, content_transformer(tolower))
+# Eliminamos los numeros
+corpus1 <- tm_map(corpus1, removeNumbers)
+# Eliminamos signos de puntuacion
+corpus1 <- tm_map(corpus1, removePunctuation)
+# Borramos los espacios en blanco
+corpus1 <- tm_map(corpus1, stripWhitespace)
+# Eliminamos palabras que no tienen significado propio
+v_stopwords <- c(stopwords("english"),c("dont","didnt","arent","cant","one","also","said"))
+corpus1 <- tm_map(corpus1, removeWords, v_stopwords)
+# Eliminamos puntuacion
+corpus1 <- tm_map(corpus1, removePunctuation)
+# Palabras deribadas por palabras raiz substituidas.
+corpus1 <- tm_map(corpus1, stemDocument, language="english")
+
+# Hacemos lo mismo con trade
+data_trade<-data2[(data2$V1=="trade"),]
+source <- VectorSource(data_trade$V2)
+corpus2 <- Corpus(source)
+corpus2 <- tm_map(corpus2, content_transformer(tolower))
+corpus2 <- tm_map(corpus2, removeNumbers)
+corpus2 <- tm_map(corpus2, removePunctuation)
+corpus2 <- tm_map(corpus2, stripWhitespace)
+v_stopwords <- c(stopwords("english"),c("dont","didnt","arent","cant","one","also","said"))
+corpus2 <- tm_map(corpus2, removeWords, v_stopwords)
+corpus2 <- tm_map(corpus2, removePunctuation)
+corpus2 <- tm_map(corpus2, stemDocument, language="english")
+
+# Construimos la matrix de documentos de la temática interest
+mat_interest <- TermDocumentMatrix(corpus1)
+## Controlamos la dispersión (Sparsity): Número de celdas igual a cero respecto al total.
+mat_interest<- removeSparseTerms(mat_interest,  0.85)
+mat_interest<-list(name="interest",mat=mat_interest)
+
+mat_trade <- TermDocumentMatrix(corpus2)
+mat_trade<- removeSparseTerms(mat_trade,  0.85)
+mat_trade<-list(name="trade",mat=mat_trade)
+
+mat<-list(mat_interest, mat_trade)
+
+
+options(stringsAsFactors = FALSE)
+
+s.mat_interest <- t(data.matrix(mat[[1]]$mat))
+
+s.df_interest <- as.data.frame(s.mat_interest, stringsAsFactors = FALSE)
+nrow(s.df_interest)
+
+Tema <- rep(mat[[1]]$name, nrow(s.df_interest))
+s.df_interest<-cbind(s.df_interest,Tema)
+
+s.mat_trade <- t(data.matrix(mat[[2]]$mat))
+
+s.df_trade <- as.data.frame(s.mat_trade, stringsAsFactors = FALSE)
+
+Tema <- rep(mat[[2]]$name, nrow(s.df_trade))
+s.df_trade<-cbind(s.df_trade,Tema)
+
+pila <-rbind.fill(s.df_interest, s.df_trade)
+pila[is.na(pila)] <- 0
+
+set.seed(111)
+
+entrena.idx <- sample(nrow(pila), ceiling(nrow(pila) * 0.7))
+
+test.idx <- (1:nrow(pila))[-entrena.idx]
+
+tema <- pila[, "Tema"]
+
+pila.nl <- pila[, !colnames(pila) %in% "Tema"]
+
+knn.pred <- knn(pila.nl[entrena.idx, ], pila.nl[test.idx, ], tema[entrena.idx])
+
+conf.mat <- table("Predicción" = knn.pred,"Real" = tema[test.idx])
+conf.mat
+
+ratio <- sum(diag(conf.mat))/length(test.idx)*100
+ratio
+
+ratio2 <- (conf.mat[1,1]/(conf.mat[1,1]+conf.mat[1,2]))*100
+ratio2
+```
+
+
+
+## Ejercicio 7: 
+Si el número de vecinos es par, que dificultad podríamos encontrar en el proceso de clasificación.
+
+## Respuesta 7: 
+> Como el algoritmo calsifica segun la mayoria de sus vecinos si tenemos 2 vecinos que son diferentes y evaluamos segun 2 vecinos, tendriamos un empate tecnico. Este problema es resuelto con la opcion l dentro del algoritmo, est determina la decision final y el numero de votos que se necesitan, si queremos ver la ayuda de KNN podemos usar el comando ?knn, este nos dira las opciones que hay.
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# Pon aquí los comandos de R en caso de ser necesario.
+?knn
+
+```
+

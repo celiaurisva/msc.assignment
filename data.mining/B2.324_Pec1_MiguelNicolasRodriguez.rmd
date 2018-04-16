@@ -1,0 +1,39 @@
+---
+title: "B2.324_Pec1_MiguelNicolasRodriguez"
+author: "Miguel Nicolas Rodriguez Martinez"
+date: "16 de abril de 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## PEC1 Mineria de datos
+
+En esta practica trabajaremos con los datos de opendata de barcelona y haremos un analisis descriptivo sobre el.
+Primero, cargamos los datos.
+
+```{r carga de datos}
+accidentes = read.csv("Accidentes2017.csv", header = TRUE)
+```
+
+Veamos como es nuestro dataframe, con la funcion dim vemos las dimensiones de nuestro dataframe.
+COn la funcion str() veremos que tipo de datos tiene nuestro dataframe y el nombre de las columnas.
+
+```{r mostramos descripcion}
+dim(accidentes)
+str(accidentes)
+```
+
+A continuacion cambiaremos los nombres de las columnas de nuestro dataframe.
+
+```{r cambio columnas}
+colnames(accidentes) <- c('Exp','DistC','DistN','BarC','BarN','CalleC','CalleN','PC','DiaSN','DiaSn','DiaTipo','Año','Mesn','MesN','Dia','Turno','Hora','Causa','Veh','Sexo','Edad','PersT','Sit','Vict','X','Y','Long','Lat')
+```
+
+  * Exp: La columna de numero de expediente es un identificador unico del accidente.
+  * Codigo de distrito: es una variable factor que identifica el distrito, a pesar de que identifica como numero es factor.
+  * Nombre del distrito: indica el nombre del distrito, es variable factor.,
+  * Codigo del barrio: identificador unico del barrio, al igual que codigo de distrito se identifica como int pero
+
