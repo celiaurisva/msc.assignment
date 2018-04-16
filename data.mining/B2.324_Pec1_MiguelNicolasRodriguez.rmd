@@ -37,3 +37,43 @@ colnames(accidentes) <- c('Exp','DistC','DistN','BarC','BarN','CalleC','CalleN',
   * Nombre del distrito: indica el nombre del distrito, es variable factor.,
   * Codigo del barrio: identificador unico del barrio, al igual que codigo de distrito se identifica como int pero
 
+
+------------------------TODOOOOOOOOOOOOOOOOOOO ------------------------------- EXPLICAAAAAAAAAAAAR --------------------
+
+Ahora para entender con que dimnensiones unicas contamos, vamos a ver cuantos accidentes unicos tenemos, para eso usaremos el expediente como codigo y contaremos los unicos que hay. Con la funcion sapply, contaremos el tamaño de la lista unica que nos queda al sacar solo los distintos en length. Seleccionaremos solo la columna expediente ya que es la que nos identifica un accidente, tambien lo tendremos que pasar a un dataframe.
+El numero de personas haremos lo mismo pero sin la funcion unique ya que asumimos que cada linea de nuestro dataset es una persona.
+
+
+```{r cantidades}
+numero_de_accidentes <- sapply(as.data.frame(accidentes$Exp), function(x) length(unique(x)))
+numero_de_personas <- sapply(as.data.frame(accidentes$Exp), function(x) length(x))
+
+numero_de_accidentes
+numero_de_personas
+```
+
+Para mostrar la distribucion de el % de hombres y mujeres dentro de nuestro dataset usaremos un piechart. Primero extraeremos los diferentes sexos y su numero de valores, es decir los que se cuentan, usaremos la funcion aggregate que nos devolvera 2 resultados, los valores diferentes que hay y el numero de veces que se han visto. Despues sacaremos la distribucion de porcentaje en la que usaremos la funcion round para que nos redondee el resultado y quede mejor para la vista despues. Despues sacamos los label que usaremos y le añadimos el porcentaje, para por ultimo, mostrarlo.
+
+```{r pie chart} 
+distribucion_del_sexo <- aggregate(data.frame(count = accidentes$Sexo), list(value = accidentes$Sexo), length)
+porcentaje_de_sexos <- round(distribucion_del_sexo$count/sum(distribucion_del_sexo$count)*100)
+
+labels <- distribucion_del_sexo$value
+labels <- paste(labels,porcentaje_de_sexos, "%")
+
+pie(porcentaje_de_sexos,labels = labels, col=topo.colors(length(distribucion_del_sexo$value)),
+  	main="Pie Chart de distribucion de sexos")
+```
+
+
+Para ello crearemos primero un dataframe con la edad dividida por sexo.
+
+```{r boxplot} 
+
+```
+
+
+
+
+
+
