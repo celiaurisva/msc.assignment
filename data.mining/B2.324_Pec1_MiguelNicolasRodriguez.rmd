@@ -7,6 +7,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
 ```
 
 ## PEC1 Mineria de datos
@@ -30,6 +31,9 @@ A continuacion cambiaremos los nombres de las columnas de nuestro dataframe.
 
 ```{r cambio columnas}
 colnames(accidentes) <- c('Exp','DistC','DistN','BarC','BarN','CalleC','CalleN','PC','DiaSN','DiaSn','DiaTipo','Año','Mesn','MesN','Dia','Turno','Hora','Causa','Veh','Sexo','Edad','PersT','Sit','Vict','X','Y','Long','Lat')
+
+str(accidentes)
+
 ```
 
   * Exp: La columna de numero de expediente es un identificador unico del accidente.
@@ -66,11 +70,59 @@ pie(porcentaje_de_sexos,labels = labels, col=topo.colors(length(distribucion_del
 ```
 
 
-Para ello crearemos primero un dataframe con la edad dividida por sexo.
+Para este caso usaremos la libraria ggplot para asi ver mas tipos de graficos. Como vemos la distribucion es mas o menos igual, aunq vemos que el rango interquartil es algo mas pequeño que el de las mujeres y los desconocidos
 
 ```{r boxplot} 
-
+ggplot(accidentes, aes(x=as.factor(Sexo), y=as.numeric(Edad))) + 
+    geom_boxplot(fill="slateblue", alpha=0.2) + 
+    xlab("sexo")
 ```
+
+
+El dia de la semana ya lo tenemos como una variable categorica como hemos podido ver usando la str(), pero en caso de que no estuviera asi lo convertiriamos de una manera.
+
+
+```{r transformacion dia} 
+accidentes$DiaSn <- as.factor(accidentes$DiaSn)
+str(accidentes$DiaSn)
+```
+
+Listemos los datos de esta variable para ver que es lo que tenemos, no necesitamos mostrar todo, por lo tanto usaremos la funcion head() para que nosmuestre solo una muestra.
+
+```{r transformacion dia} 
+head(accidentes$DiaSn)
+```
+
+
+Para entender mejor los dias de la semana y que sea independiente de cualquier idioma cambiaremos los niveles a el siguiente vector. Es importante que el orden del vector sea igual al orden de los niveles, como podemos ver en el apartado anterior, los niveles que tenemos son estos en ese orden:
+Levels: Dc Dg Dj Dl Dm Ds Dv
+
+
+```{r transformacion dia} 
+levels(accidentes$DiaSn) <- c("D3","D7","D4","D1","D2","D6","D5")
+```
+
+
+Ahora mostraremos el numero de accidentes por dia ordenado de mayor a menor. Le pasamos la funcion order al dataframe para que nos ordene los balores por dia en descendiente.
+
+```{r transformacion dia} 
+numero_de_accidentes_por_dia <- aggregate(data=accidentes, Exp ~ DiaSn, function(x) sort(length(unique(x))) )
+numero_de_accidentes_por_dia <- numero_de_accidentes_por_dia[order(numero_de_accidentes_por_dia$Exp, decreasing = TRUE),]
+```
+
+
+Ahora mostraremos la distribucion de los valores con un braplot
+
+
+```{r transformacion dia} 
+barplot(numero_de_accidentes_por_dia$Exp, main="Number of accidents by day", 
+        col=c('#09325E','#661F63','#BFBA38','#8A8E37','#C4BD79','#9FA8AB','#00490C'),
+        names.arg =numero_de_accidentes_por_dia$DiaSn,
+        xlab="Days of the week")
+```
+
+
+
 
 
 
