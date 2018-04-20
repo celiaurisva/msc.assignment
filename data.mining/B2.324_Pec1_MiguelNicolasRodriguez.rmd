@@ -1,5 +1,5 @@
 ---
-title: "B2.324_Pec1_MiguelNicolasRodriguez"
+title: "B2.324_Pec1_Lectura y preparación de datos_MiguelNicolasRodriguez"
 author: "Miguel Nicolas Rodriguez Martinez"
 date: "16 de abril de 2018"
 output: html_document
@@ -10,14 +10,18 @@ knitr::opts_chunk$set(echo = TRUE)
 library(ggplot2)
 ```
 
-## PEC1 Mineria de datos
+## PEC1 Mineria de datos, Miguel Nicolas ROdriguez Martinez
+
+# 1
 
 En esta practica trabajaremos con los datos de opendata de barcelona y haremos un analisis descriptivo sobre el.
 Primero, cargamos los datos.
 
 ```{r carga de datos}
-accidentes = read.csv("Accidentes2017.csv", header = TRUE)
+accidentes = read.csv("Accidentes2017.csv", header = TRUE, encoding="UTF-8")
 ```
+
+# 2
 
 Veamos como es nuestro dataframe, con la funcion dim vemos las dimensiones de nuestro dataframe.
 COn la funcion str() veremos que tipo de datos tiene nuestro dataframe y el nombre de las columnas.
@@ -26,6 +30,8 @@ COn la funcion str() veremos que tipo de datos tiene nuestro dataframe y el nomb
 dim(accidentes)
 str(accidentes)
 ```
+
+# 3
 
 A continuacion cambiaremos los nombres de las columnas de nuestro dataframe.
 
@@ -36,13 +42,36 @@ str(accidentes)
 
 ```
 
+# 4
+
+Esto es el dataset con el que contaremos y lo que nos proporcionan.
+
   * Exp: La columna de numero de expediente es un identificador unico del accidente.
   * Codigo de distrito: es una variable factor que identifica el distrito, a pesar de que identifica como numero es factor.
   * Nombre del distrito: indica el nombre del distrito, es variable factor.,
   * Codigo del barrio: identificador unico del barrio, al igual que codigo de distrito se identifica como int pero
+  * Nombre del barrio: nombre del barrio donde se ha producido el accidente.
+  * Codigo de calle: identificador unico de calle.
+  * Nombre calle: nombre donde se ha producido el accidente.
+  * Codigo postal: codigo postal donde se ha producido el accidente.
+  * Descripcion del dia de la semana: nombre completo de la semana, factor de 7 niveles.
+  * Dia de la semana codigficado: factor de 7 niveles.
+  * Tipo de dia, factorial de 1 nivel, laboral.
+  * Año: año.
+  * Mesn: numero de mes.
+  * Numbre del mes: nombre del mes.
+  * Dia: dia del mes.
+  * Turno: 3 niveles, tarde noche y mañana.
+  * Hora: hora del accidente, no se toma como factorial por R pero deberia serlo.
+  * Causa: causa del accidente, factor 6 niveles.
+  * Veh: tipo de vehiculo, factor 31 niveles.
+  * Sexo: sexo del mencionado, 3 niveles.
+  * Edad: edad del mencionado.
+  * Perst: tipo de persona.
+  * Sit: la situacion del mencionado.
+  * Vict: que le ha pasado, si hospital etc.
 
-
-------------------------TODOOOOOOOOOOOOOOOOOOO ------------------------------- EXPLICAAAAAAAAAAAAR --------------------
+# 5
 
 Ahora para entender con que dimnensiones unicas contamos, vamos a ver cuantos accidentes unicos tenemos, para eso usaremos el expediente como codigo y contaremos los unicos que hay. Con la funcion sapply, contaremos el tamaño de la lista unica que nos queda al sacar solo los distintos en length. Seleccionaremos solo la columna expediente ya que es la que nos identifica un accidente, tambien lo tendremos que pasar a un dataframe.
 El numero de personas haremos lo mismo pero sin la funcion unique ya que asumimos que cada linea de nuestro dataset es una persona.
@@ -55,6 +84,8 @@ numero_de_personas <- sapply(as.data.frame(accidentes$Exp), function(x) length(x
 numero_de_accidentes
 numero_de_personas
 ```
+
+# 6
 
 Para mostrar la distribucion de el % de hombres y mujeres dentro de nuestro dataset usaremos un piechart. Primero extraeremos los diferentes sexos y su numero de valores, es decir los que se cuentan, usaremos la funcion aggregate que nos devolvera 2 resultados, los valores diferentes que hay y el numero de veces que se han visto. Despues sacaremos la distribucion de porcentaje en la que usaremos la funcion round para que nos redondee el resultado y quede mejor para la vista despues. Despues sacamos los label que usaremos y le añadimos el porcentaje, para por ultimo, mostrarlo.
 
@@ -69,6 +100,7 @@ pie(porcentaje_de_sexos,labels = labels, col=topo.colors(length(distribucion_del
   	main="Pie Chart de distribucion de sexos")
 ```
 
+# 7
 
 Para este caso usaremos la libraria ggplot para asi ver mas tipos de graficos. Como vemos la distribucion es mas o menos igual, aunq vemos que el rango interquartil es algo mas pequeño que el de las mujeres y los desconocidos
 
@@ -78,6 +110,9 @@ ggplot(accidentes, aes(x=as.factor(Sexo), y=as.numeric(Edad))) +
     xlab("sexo")
 ```
 
+# 8
+
+## 8.1
 
 El dia de la semana ya lo tenemos como una variable categorica como hemos podido ver usando la str(), pero en caso de que no estuviera asi lo convertiriamos de una manera.
 
@@ -87,39 +122,142 @@ accidentes$DiaSn <- as.factor(accidentes$DiaSn)
 str(accidentes$DiaSn)
 ```
 
+## 8.2
+
 Listemos los datos de esta variable para ver que es lo que tenemos, no necesitamos mostrar todo, por lo tanto usaremos la funcion head() para que nosmuestre solo una muestra.
 
-```{r transformacion dia} 
+```{r transformacion dia muestra} 
 head(accidentes$DiaSn)
 ```
 
+## 8.3
 
 Para entender mejor los dias de la semana y que sea independiente de cualquier idioma cambiaremos los niveles a el siguiente vector. Es importante que el orden del vector sea igual al orden de los niveles, como podemos ver en el apartado anterior, los niveles que tenemos son estos en ese orden:
 Levels: Dc Dg Dj Dl Dm Ds Dv
 
 
-```{r transformacion dia} 
+```{r transformacion dia levels} 
 levels(accidentes$DiaSn) <- c("D3","D7","D4","D1","D2","D6","D5")
 ```
 
+## 8.4
 
 Ahora mostraremos el numero de accidentes por dia ordenado de mayor a menor. Le pasamos la funcion order al dataframe para que nos ordene los balores por dia en descendiente.
 
-```{r transformacion dia} 
+```{r numero de accidentes} 
 numero_de_accidentes_por_dia <- aggregate(data=accidentes, Exp ~ DiaSn, function(x) sort(length(unique(x))) )
 numero_de_accidentes_por_dia <- numero_de_accidentes_por_dia[order(numero_de_accidentes_por_dia$Exp, decreasing = TRUE),]
 ```
 
-
+## 8.5
 Ahora mostraremos la distribucion de los valores con un braplot
 
 
-```{r transformacion dia} 
+```{r numero de accidentes barplot} 
 barplot(numero_de_accidentes_por_dia$Exp, main="Number of accidents by day", 
         col=c('#09325E','#661F63','#BFBA38','#8A8E37','#C4BD79','#9FA8AB','#00490C'),
         names.arg =numero_de_accidentes_por_dia$DiaSn,
         xlab="Days of the week")
 ```
+
+# 9
+
+# 9.1
+
+Para el siguiente ejericio tenemos que coger todos los que esten muertos y los que esten graves, para eso usaremos la funcion grep y seleccionaremos aquellos en los que en la columna Vict se encuentre la palabra greu o mort. Dentro de la funcin grep le pasamos los argumentos de mort y greu separados por | eso significa que uno u otro, tambien ponemos las palabras a comparar en minusculas.
+
+
+```{r accidentes graves} 
+accidentes_graves <- accidentes[grep("mort|greu", tolower(accidentes$Vict)), ]
+head(accidentes_graves$Vict)
+```
+
+## 9.2
+
+Para mostrar en una grafica de las distintas causas de accidentes, lo primero que haremos sera seleccionar solo una fila de cada uno de los accidentes, despues como en el anterior agruparemos por causa el numero de expedientes (accidentes), sacamos el porcentaje construimos el piechart y lo mostramos.
+
+```{r causa pie chart} 
+accidentes_unicos_tipo <- aggregate(data.frame(Causa = accidentes_graves$Causa), list(Exp = accidentes_graves$Exp), unique)
+distribucion_tipo_accidente <- aggregate(data.frame(Num_accidentes = accidentes_unicos_tipo$Exp), list(Causa = accidentes_unicos_tipo$Causa), length)
+porcentaje_de_tipos <- round(distribucion_tipo_accidente$Num_accidentes/sum(distribucion_tipo_accidente$Num_accidentes)*100)
+
+labels <- distribucion_tipo_accidente$Causa
+labels <- paste(labels,porcentaje_de_tipos, "%")
+
+pie(porcentaje_de_tipos,labels = labels, col=topo.colors(length(distribucion_tipo_accidente$Num_accidentes)),
+  	main="Pie Chart de distribucion de accidentes por tipos")
+```
+
+## 9.3
+
+Ahora sacaremos una lista en la que nos dira el tipo de vehiculos en el que mostraremos el tipo de vehiculos implicados cuando el peaton no es el causante. Para ello primero de la lista sacaremos con los registros en los que no tenemos como causante al peaton. Despues agregaremos y sacaremos la lista y sacaremos el numero de accidentes ordenados de mayor a menor por vehiculo.
+
+```{r vehiculos} 
+accidentes_peatones_no_culpables <- accidentes_graves[grep("causa del  vianant", tolower(accidentes_graves$Causa)), ]
+accidentes_graves_por_vehiculo <- aggregate(data.frame(Numero = accidentes_peatones_no_culpables$Veh), list(Vehiculo = accidentes_peatones_no_culpables$Veh), length)
+accidentes_graves_por_vehiculo <- accidentes_graves_por_vehiculo[order(accidentes_graves_por_vehiculo$Numero, decreasing = TRUE),]
+head(accidentes_graves_por_vehiculo)
+```
+
+## 9.4
+
+Unificamos motocicleta y ciclomotor ya que lo tomaremos como el mismo tipo de vehiculo, para ello sobreescribiremos los niveles del factor.
+levels()
+
+```{r cambiar niveles} 
+levels(accidentes_peatones_no_culpables$Veh) <- c("Altres vehicles amb motor", "Altres vehicles sense motor","Autobus","Autobus articulado","Autobus articulat","Autocar","Autocaravana","Bicicleta","Camion rgid <= 3,5 tones","Camion ragid > 3,5 tones","Camionn <= 3,5 Tm","Camion > 3,5 Tm","Motocicleta","Cuadriciclo <75cc","Desconegut","Furgoneta","Maquinaria d'obres i serveis", "Microbus <= 17","Motocicleta","Otros vehic. a motor","Quadricicle < 75 cc","Quadricicle > 75 cc","Taxi","Todo terreno","Tot terreny","Tractocamion","Tractor camion","Tranvia o tren","Tren o tramvia","Turisme","Turismo" )
+```
+
+## 9.5
+
+Mostramos los 3 vehiculos mas frecuentes, para ello usamos head y le pasamos 3.
+
+```{r mostrar tres mas frecuentes} 
+accidentes_graves_por_vehiculo <- aggregate(data.frame(Numero = accidentes_peatones_no_culpables$Veh), list(Vehiculo = accidentes_peatones_no_culpables$Veh), length)
+accidentes_graves_por_vehiculo <- accidentes_graves_por_vehiculo[order(accidentes_graves_por_vehiculo$Numero, decreasing = TRUE),]
+head(accidentes_graves_por_vehiculo, 3)
+```
+
+## 9.6
+
+Ahora buscaremos el tipo de persona mas afectada por los accidentes en los que esta implicada una motocicleta. Para ello, primero seleccionaremos los vehiculos en los que las motocicletas han sido las causantes, despues agruparemos y mostraremos. Sobre todo devemos saber que niveles hay en la columna PersT para ver cual es la victima.
+
+```{r personas afectadas} 
+personas_afectadas_por_motocicleta <- accidentes_peatones_no_culpables[accidentes_peatones_no_culpables$Veh == "Motocicleta", ]
+personas_afectadas_agrupadas <- aggregate(data.frame(Numero = personas_afectadas_por_motocicleta$Veh), list(Victima = personas_afectadas_por_motocicleta$PersT), length)
+head(personas_afectadas_agrupadas)
+```
+
+# 10
+
+Ahora guardaremos en un csv las siguientes columnas, número de expediente, la causa, el vehículo y tipo de persona implicada.
+
+```{r guardamos fichero} 
+dataframe_guardar <- accidentes_graves[c("Exp","Causa","Veh","PersT")]
+write.csv(dataframe_guardar, file = "accidentesgraves.csv")
+```
+
+# 11 Conclusiones.
+
+Como podemos ver, hay mas hombres afectados por los accidentes, esto puede venir causado de que mas hombres conducen vehiculos. Segun la DGT hay mas hombres conduciendo que mujeres [fuente](http://www.dgt.es/es/seguridad-vial/estadisticas-e-indicadores/censo-conductores/tablas-estadisticas/). No existe gran diferencia en la distribucion entre hombres y mujeres en la edad, se ve como la distribucion de los hombres es mas compacta ya que el rango interquartil es mas corto.
+
+Los viernes es cuando se producen mas accidentes, esto puede ser por un tema psicologico en el que se apunta a la ansiedad como uno de los principales causantes en varios estudios [fuente](http://www.elcorreo.com/sociedad/viernes-dias-accidentes-20170929110250-nt.html). Los sabados y los domingos es cuando hay menos accidentes pudiendo ser por una disminucion de trafico o por que fluye menos trafico pesado [fuente](https://www.muyinteresante.es/curiosidades/preguntas-respuestas/hay-mas-o-menos-accidentes-de-trafico-los-fines-de-semana-201378124639).
+
+La causa mas comun identificada del accidente es por saltarse el semaforo, con un alto % en el que solo se sabe que no es culpable el viandante.
+
+Dentro de los accidentes mas graves estan causados por las motocicletas en los que de 140 accidentes graves registrados 124 el conductor esta grave o muerto. Se puede decir que las motos son el vehiculo menos seguro.
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
