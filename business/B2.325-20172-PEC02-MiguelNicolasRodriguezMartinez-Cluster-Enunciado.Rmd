@@ -1,0 +1,540 @@
+
+---
+title: "Algoritmos de clustering"
+author: "UOC - Master BI - Business Analytics Miguel Nicolas Rodriguez Martinez"
+date: "Mayo del 2018"
+output:
+  html_document:
+    fig_height: 5
+    fig_width: 7
+    number_sections: yes
+    theme: journal
+    toc: yes
+    toc_depth: 2
+  pdf_document:
+    toc: yes
+  word_document: default
+---
+
+
+******
+# Introducción
+******
+
+Esta práctica está basada en los puntos 3.3.1, 3.3.2 y 3.3.3 del material didáctico (Business Analytics) de la asignatura. En el punto 3.3.1 se explica el procedimiento de segmentación jerárquica, mientras en los puntos 3.3.2 y 3.3.3 se explican procedimientos de segmentación no jerárquica para la formación de grupos que, respecto a la información utilizada, sean homogéneos dentro de si mismos y heterogéneos entre unos y otros.   
+
+A lo largo de la práctica se proponen una serie de representaciones gráficas que ayudan a la interpretación de los resultados, sin embargo, podéis insertar más visualizaciones de las propuestas o incluso más código del estrictamente exigido en los ejercicios, eso sí, siempre con el objetivo de completar y mejorar el estudio propuesto.  
+
+En esta práctica importaremos los datos desde un fichero de texto .csv con los campos delimitados por ";". Dichos datos corresponden a la información sobre algunas características de una muestra de asegurados procedentes de una cartera de seguros de automóvil. Los datos han sido extraídos de una cartera de asegurados real, aunque para garantizar la confidencialidad de la información se ha seleccionado una muestra no representativa o sesgada de la realidad. 
+
+******
+# Objetivos e información disponible
+******
+
+El objetivo de esta segunda PEC se centra en la determinación de distintos perfiles de asegurados del automóvil. 
+
+Las variables que se definen en la base de datos y sus contenidos son:
+
+--poliza: Identificador de póliza
+
+--Sexo: Sexo del cliente
+
+--sri: Situación de riesgo o zona de circulación urbana o no urbana
+
+--gdi: Contratada garantía de daños propios o no
+
+--sin: Número de siniestros en el año analizado
+
+--ant_comp: Antigüedad del cliente en la compañía (en años)
+
+--ant_perm: Antigüedad del permiso de conducir del asegurado (en años)
+
+--edad: Edad del asegurado (en años)
+
+--ant_veh: Antigüedad del vehículo asegurado (en años).
+
+
+******
+# Apartados de la práctica
+******
+El código R que utilizaremos en la práctica se divide en apartados según las tareas que iremos realizando:  
+
+* Directorio de trabajo
+
+* Importación del fichero de datos .csv. Manipulación y representación de las variables
+
+* Normalización de atributos
+
+* Agrupación jerárquica: Algoritmo aglomerativo
+
+* Uso de la función hclust() para la aglomeración de elementos
+
+* Representación gráfica, Dendograma
+
+* Asignación de los clusters
+
+* Representación de los cluster
+
+* Representación gráfica de variables por cluster
+
+* Agrupación no jerárquica: Algoritmo kmeans
+
+* Uso de la función kmeans() para la formación de cluster (grupos o perfiles de individuos)
+
+* Elección del número de clústers
+
+* Asignación de los clusters
+
+* Representación de los cluster
+
+* Representación gráfica de los clústers
+  
+* Ejercicios PEC2: Análisis cluster
+
+
+******
+# Directorio de trabajo
+******
+Antes de pasar a la importación y análisis de los datos definimos un directorio de trabajo o carpeta donde tenéis guardado el fichero de datos. Recordad que si abrís el RStudio desde vuestro directorio de trabajo, pulsando sobre el fichero .RMD que se os proporciona como parte del enunciado, este paso no haría falta.
+```{r,eval=TRUE,echo=TRUE}
+#setwd("Pon aquí el directorio utilizado")
+#Cambiar el argumento de setwd() con vuestro directorio, recordad utilizad las barras /.
+setwd("/home/miguelnrm/code/msc.assignment/business")
+```
+
+******
+# Importación del fichero de datos .csv. Manipulación y representación de las variables.
+******
+En primer lugar leemos el fichero de datos con extensión .csv que contiene la información de las 8.088 pólizas analizadas y mostramos su cabecera.
+```{r,eval=TRUE,echo=TRUE}
+# Lectura de datos
+Cartera<-read.table("Datos_analisis_clusters.csv",head=TRUE,sep=";")
+head(Cartera)
+```
+A continuación describimos su contenido con la función summary() y con algunos gráficos. Observamos que para las variables cuantitativas la función summary() proporciona una serie de estadísticos descriptivos relacionados con la posición de la variable (media, mediana, máximo, mínimo,...). Sin embargo, para las variables cualitativas el resultado muestra las frecuencias absolutas (número de casos) de las categorías de las variables.
+```{r,eval=TRUE,echo=TRUE}
+summary(Cartera)
+```
+
+Realizamos algunas representaciones gráficas para describir la base de datos Cartera, utilizamos las herramientas gráficas adecuadas para cada tipo de variable: Cualitativa o Cuantitativa. Recordad que, antes de realizar cualquier análisis, es imprescindible estudiar el comportamiento univariante y bivariante de las variables.
+```{r,eval=TRUE,echo=TRUE}
+plot(Cartera[c("ant_comp","ant_perm")], xlab="Fidelidad", ylab="Experiencia") 
+title(main="Nube de puntos original", col.main="blue", font.main=1)
+
+freq<-table(Cartera$sin)
+freq
+barplot(freq,xlab="Número de siniestros", ylab="Frecuencia")
+title(main="Número de siniestros", col.main="blue", font.main=1)
+
+table(Cartera$Sexo,Cartera$sin)
+prop.table(table(Cartera$Sexo,Cartera$sin))
+barplot(prop.table(table(Cartera$Sexo,Cartera$sin)),col=c("darkblue","red"))
+legend(5,0.8,c("Hombre","Mujer"),fill = c("darkblue","red"))
+```
+
+******
+# Normalización de atributos
+******
+El objetivo es utilizar la información cuantitativa relacionada con la experiencia (edad y ant_perm), con la fidelidad (ant_comp), con el vehículo (ant_veh) y con la siniestralidad (sin) para segmentar a los asegurados. Para ello, en primer lugar, definimos la base de datos con las variables cuantitativas que utilizamos en la segmentación, el resto de variables pueden servir para caracterizar los grupos formados.
+```{r,eval=TRUE,echo=TRUE}
+clus<-Cartera[,c("sin","ant_comp","ant_perm","edad","ant_veh")]
+```
+
+La varianza de las variables (o su rango de valores) utilizadas en el análisis son distintas debido a que miden características diferentes de los individuos y de su vehículo. Por ejemplo, entre las variables utilizadas en el cluster hay algunas que miden el número de años y otra que mide el número de siniestro, es decir, las escalas son muy distintas. Por tanto, antes de iniciar el proceso de segmentación es necesario normalizar los valores de las variables para eliminar el efecto de las distintas escalas de medida, esto equivale a restarles su media y dividirlas por su desviación estándar.
+
+Para la normalización de las variables en la base de datos clus, en primer lugar copiamos su contenido en clus_norm:
+```{r,eval=TRUE,echo=TRUE}
+clus_norm<-clus
+```
+
+Remplazamos las columnas de clus_norm por las columnas de clus normalizadas:
+```{r,eval=TRUE,echo=TRUE}
+ clus_norm[,c("sin")] <- (clus$sin-mean(clus$sin))/sd(clus$sin)
+ clus_norm[,c("ant_comp")] <- (clus$ant_comp-mean(clus$ant_comp))/sd(clus$ant_comp)
+ clus_norm[,c("ant_perm")] <- (clus$ant_perm-mean(clus$ant_perm))/sd(clus$ant_perm)
+ clus_norm[,c("edad")] <- (clus$edad-mean(clus$edad))/sd(clus$edad)
+ clus_norm[,c("ant_veh")] <- (clus$ant_veh-mean(clus$ant_veh))/sd(clus$ant_veh)
+```
+
+Realizamos algunas representaciones gráficas para describir las variables normalizadas y comprobamos que la nube de puntos representada es igual a la original, lo único que cambia es la escala de los ejes.
+```{r,eval=TRUE,echo=TRUE}
+#Normalizadas
+plot(clus_norm[c("ant_comp","ant_perm")], xlab="Fidelidad", ylab="Experiencia") 
+title(main="Nube de puntos normalizados", col.main="blue", font.main=1)
+
+#Originales
+plot(clus[c("ant_comp","ant_perm")], xlab="Fidelidad", ylab="Experiencia") 
+title(main="Nube de puntos originales", col.main="blue", font.main=1)
+```
+
+A PARTIR DE AHORA TRABAJAMOS CON LOS DATOS NORMALIZADOS.
+
+******
+# Agrupación jerárquica: Algoritmo aglomerativo
+******
+
+El algoritmo jerárquico es una técnica no supervisada de agrupación de elementos de forma iterativa. Se comienza con todos los elementos desagrupados y en cada iteración agrupa los dos elementos o grupos de elementos más próximos, utilizando un criterio de enlace, hasta que todos los elementos forman un único grupos.
+
+******
+## Uso de la función hclust() para la aglomeración de elementos  
+******
+
+Para poder agrupar los elementos es necesario establecer una métrica de distancia siendo la habitual la métrica euclídea. Dado que hay que establecer una distancia las variables deben ser numéricas por lo que si se quieren introducir variables categórica deberá crearse una variable indicador para cada una de las categorías.
+
+```{r,eval=TRUE,echo=TRUE}
+distances = dist(clus_norm, method = "euclidean")
+```
+
+Una vez considerada la distancia a utilizar y calculada la distancia entre los elementos a agrupar se utiliza el comando hclust de agrupación de elementos
+
+```{r,eval=TRUE,echo=TRUE}
+clus_norm_Jerarquico = hclust(distances, method = "ward.D")
+```
+
+******
+## Representación gráfica, Dendograma   
+******
+
+Es importante señalar que no es necesario establecer de forma previa el número de conjuntos o clusters dado que el algoritmo culmina con la agrupación de todos los elementos en un único grupo. 
+
+Esta agrupación se suele representar con un gráfico llamado dendograma que muestra las agrupaciones realizadas (líneas de agrupación) y la distancia entre los elementos o grupos de elementos (altura).
+
+```{r,eval=TRUE,echo=TRUE}
+plot(clus_norm_Jerarquico,main="dendograma",xlab="elementos",ylab="distancias")
+```
+
+Sobre el propio dendograma se pueden representar los grupos que se obtendrían al separar los elementos en un número k predefinido de grupos.
+
+```{r,eval=TRUE,echo=TRUE}
+plot(clus_norm_Jerarquico,main="dendograma",xlab="elementos",ylab="distancias")
+
+rect.hclust(clus_norm_Jerarquico, k=2, border="yellow")
+rect.hclust(clus_norm_Jerarquico, k=3, border="blue")
+rect.hclust(clus_norm_Jerarquico, k=4, border="green")
+rect.hclust(clus_norm_Jerarquico, k=6, border="red")
+rect.hclust(clus_norm_Jerarquico, k=10, border="cyan")
+```
+
+******
+## Asignación de los clusters   
+******
+
+Para mantener el conjunto de datos original lo primero que hacemos es crear una copia del conjunto de datos
+
+```{r,eval=TRUE,echo=TRUE}
+clus_jerarquico=clus
+
+```
+
+Una vez elegido el número de clusters, se puede asignar a cada elemento el cluster asignado. En este caso vamos a elegir 4 clusters.
+
+```{r,eval=TRUE,echo=TRUE}
+NumCluster=4
+
+clus_jerarquico$clusterJerar= cutree(clus_norm_Jerarquico, k = NumCluster)
+head(clus_jerarquico)
+```
+
+******
+## Representación de los cluster  
+******
+Para poder interpretar los clusters es habitual representarlos mediante el valor medio de las variables en cada cluster.
+
+```{r,eval=TRUE,echo=TRUE}
+aggregate(.~clusterJerar,FUN=mean, data=clus_jerarquico)
+table(clus_jerarquico$clusterJerar)
+```
+
+De esta manera podemos ver que hay diferencias entre los grupos. Por ejemplo el grupo 1 está formado por clientes más jovenes, mientras que el grupo 4 está formado por clientes más veteranos con mucha antigüedad en la compañía. El grupo 3, por su parte, incluye a todos los siniestrados.
+
+******
+## Representación gráfica de variables por cluster  
+******
+
+Se puede actualizar el gráfico presentado previamente que relaciona la fidelidad con la experiencia incluyendo al asignación de clusters.
+
+```{r,eval=TRUE,echo=TRUE}
+plot(clus_jerarquico[c("ant_comp","ant_perm")], xlab="Fidelidad", ylab="Experiencia",col=clus_jerarquico$clusterJerar) 
+title(main="Nube de puntos agrupados", col.main="blue", font.main=1)
+```
+
+El grupo 1 es el color negro, el grupo 2 es el color rojo, el grupo 3 es el color verde y el grupo 4 es el color azul.
+
+```{r,eval=TRUE,echo=TRUE}
+palette()[1:NumCluster]
+```
+
+******
+# Agrupación no jerárquica: Algoritmo kmeans
+******
+
+
+******
+## Uso de la función kmeans() para la formación de cluster (grupos o perfiles de individuos) 
+******
+Los algoritmos de segmentación no supervisados, como es el kmeans(), requieren que el analista determine cuál es el número de clústers (grupos) a formar, de hecho, la función kmeans() incorpora como parámetro el número de clústers (centers=).
+
+Para seleccionar el número de grupos podemos utilizar criterios subjetivos o criterios objetivos. Los criterios subjetivos se basan en la visualización de los resultados para determinar el número de clústers más apropiado o en la simple experiencia. A continuación, utilizamos la función kmeans() para formar 3 grupos de individuos y visualizamos algunos resultados como son: los centros de grupos (centers), la suma de cuadrados totales (totss), las sumas de cuadrados dentro de cada grupo y para todos de forma conjunta (withinss y tot.withinss) y la suma de cuadrados entre grupos (betweenss). 
+
+```{r,eval=TRUE,echo=TRUE}
+set.seed(123)
+modelo_k3<-kmeans(clus_norm,centers=3)
+modelo_k3$centers
+modelo_k3$totss
+modelo_k3$withinss
+modelo_k3$tot.withinss
+modelo_k3$betweenss
+```
+
+******
+## Elección del número de clústers   
+******
+Para la selección del número de clústers también existen criterios objetivos los cuales están basados en la optimización de un criterio de ajuste.
+
+Los criterios de ajustes en el kmeans() se basan en los conceptos de sumas de cuadrados entre grupos (betweens) y dentro de grupos (withins). Hay que tener en cuenta que la suma de cuadrados entre grupos (betweenss) más las sumas de cuadrados dentro de grupos (tot.withinss) nos proporciona la suma de cuadrados totales (tots). Recordad también que las sumas de cuadrados corresponden a los numeradores de las varianzas correspondientes. 
+
+Una segmentación se considera 'óptima' cuando, para cada grupo, los individuos son lo más homgéneos posibles mientras que son más heterogeneos a los individuos del resto de grupos Dicha segmentación coincidirá con aquella que, teniendo un número de grupos razonable, posee una "suma de cuadrados entre grupos"(betweenss) suficientemente grande y, por tanto, una "suma de cuadrados dentro de grupos" (tot.withinss) suficientemente pequeña. Es decir, la varianza dentro de grupos debe ser reducida (individuos dentro de un mismo grupo tiene que ser similares) y la varianza entre grupos debe ser grande (individuos de distintos grupos tienen que ser distintos). También, tenemos que tener en cuenta que a medida que el número de grupos aumenta la suma de cuadrados entre aumenta y, por tanto, la suma de cuadrados dentro disminuye, por tanto, el analista a de decidir cuando el aumento de la suma de cuadrados entre o, alternativamente, la disminución de la suma de cuadrados dentro no son lo suficientemente pronunciados. Por ejemplo, comparamos los resultados para los casos de formar 2 y 3 grupos.
+
+```{r,eval=TRUE,echo=TRUE}
+#Suma de cuadrados entre grupos
+kmeans(clus_norm,2)$betweenss
+kmeans(clus_norm,3)$betweenss
+
+#Suma de cuadrados dentro grupos
+kmeans(clus_norm,2)$tot.withinss 
+kmeans(clus_norm,3)$tot.withinss
+
+#Suma de cuadrados total
+kmeans(clus_norm,2)$totss 
+kmeans(clus_norm,3)$totss
+```
+
+A continuación, definimos el modo de obtener un gráfico que nos represente la suma de cuadrados entre grupos en función del número de grupos.
+```{r,eval=TRUE,echo=TRUE}
+set.seed(123)
+bss <- kmeans(clus_norm,centers=1)$betweenss
+ for (i in 2:10) bss[i] <- kmeans(clus_norm,centers=i)$betweenss
+
+plot(1:10, bss, type="l", xlab="Número de grupos",ylab="Sumas de cuadrados entre grupos")
+```
+
+******
+## Asignación de los clusters   
+******
+
+Para mantener el conjunto de datos original lo primero que hacemos es crear una copia del conjunto de datos
+
+```{r,eval=TRUE,echo=TRUE}
+clus_kmeans=clus
+```
+
+Una vez elegido el número de clusters, se puede asignar a cada elemento el cluster asignado. En este caso vamos a elegir 5 clusters.
+
+```{r,eval=TRUE,echo=TRUE}
+NumCluster=5
+set.seed(123)
+Modelo=kmeans(clus_norm,NumCluster)
+clus_kmeans$clusterKmeans= Modelo$cluster
+head(clus_kmeans)
+```
+
+******
+## Representación de los cluster  
+******
+Para poder interpretar los clusters es habitual representarlos mediante el valor medio de las variables en cada cluster.
+
+```{r,eval=TRUE,echo=TRUE}
+aggregate(.~clusterKmeans,FUN=mean, data=clus_kmeans)
+table(clus_kmeans$clusterKmeans)
+```
+
+De esta manera podemos ver que hay diferencias entre los grupos. Por ejemplo el grupo 5 está formado por clientes más jovenes, mientras que el grupo 1 está formado por clientes  con mucha antigüedad en la compañía. El grupo 3, por su parte, incluye a todos los siniestrados y el grupo 4 recoge a asegurados con una antiguedad del vehículo superior.
+
+******
+## Representación gráfica de los clústers   
+******
+
+Se puede actualizar el gráfico presentado previamente que relaciona la fidelidad con la experiencia incluyendo al asignación de clusters.
+
+```{r,eval=TRUE,echo=TRUE}
+plot(clus_kmeans[c("ant_comp","ant_perm")], xlab="Fidelidad", ylab="Experiencia",col=clus_kmeans$clusterKmeans) 
+title(main="Nube de puntos agrupados", col.main="blue", font.main=1)
+```
+
+El grupo 1 es el color negro, el grupo 2 es el color rojo, el grupo 3 es el color verde, el grupo 4 es el color azul y el grupo 5 es el de color cyan.
+
+```{r,eval=TRUE,echo=TRUE}
+palette()[1:NumCluster]
+```
+
+******
+# Ejercicios PEC2
+******
+
+******
+## Ejercicio 1
+******
+En el apartado de *_representación gráfica de variables por cluster_* del algorítmo jerárquico se ha dibujado una nube de puntos en función a la fidelidad y la experiencia. Ahora queremos conocer la relación entre la antiguedad del permiso de conducir y la edad representando con 4 colores los clusters construidos con el algorítmo jerárquico.
+
+******
+## Respuesta 1
+******
+
+Para ello cojeremos del dataframe edad y ant_perm y lo mostraremos.
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# Pon aquí los comandos de R en caso de ser necesario.
+plot(clus_jerarquico[c("ant_perm","edad")], xlab="Antiguedad carnet", ylab="Edad",col=clus_jerarquico$clusterJerar) 
+title(main="Nube de puntos agrupados", col.main="blue", font.main=1)
+
+```
+
+******
+## Ejercicio 2
+******
+Construir una clusterización en 7 clusters utilizando el algoritmo kmeans. Represente los clusters tal y como se ha hecho en el apartado *_representación de los cluster_* y describa alguno de los grupos
+
+******
+## Respuesta 2
+******
+
+Vemos como el ultimo grupo sigue siendo el de los jovenes, edad corta, poca experiencia, en el lado contrario, vemos el grupo 4, el cual con 49 años de media, vehiculo viejo, y muchos años de experiencia y siendo fieles.
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# Pon aquí los comandos de R en caso de ser necesario.
+NumCluster=7
+set.seed(123)
+Modelo=kmeans(clus_norm,NumCluster)
+clus_kmeans$clusterKmeans= Modelo$cluster
+head(clus_kmeans)
+
+aggregate(.~clusterKmeans,FUN=mean, data=clus_kmeans)
+```
+
+******
+## Ejercicio 3
+******
+En el apartado de *_asignacion de los clusters_* del algoritmo kmeans aparece el código set.seed(123). Vuelva a realizar una agrupación kmeans con 5 clusters pero utilizando el código set.seed(12345). ¿Obtenemos el mismo resultado?, compare los resultados. ¿Cuál es el motivo por el que ocurre esto?
+
+******
+## Respuesta 3
+******
+
+No se obtiene el mismo resultado ya que la semilla es diferente, la semilla es una manera de "barajar" que tiene el algoritmo, por ejemplo para ver donde empiezan los centroides. En este caso la semilla es una manera de asegurarse la reproducibilidad de los reultados, para que, en caso de que una persona haga el mismo algoritmo, la aleatoriedad no sea un factor diferenciador a la hora de comparar.
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# Pon aquí los comandos de R en caso de ser necesario.
+NumCluster=5
+set.seed(12345)
+Modelo=kmeans(clus_norm,NumCluster)
+clus_kmeans$clusterKmeans= Modelo$cluster
+head(clus_kmeans)
+```
+
+******
+##Ejercicio 4
+******
+Al presentar los datos obtenidos por el algoritmos jerárquico para 4 cluster a los responsables del negocio, nos preguntan si el reparto de hombres y mujeres entre los clusters es homogéneo o hay alguno en el que haya mayoría. Calcule el porcentaje de hombres y mujeres que hay en cada cluster.
+
+******
+##Respuesta 4
+******
+
+Para ello añadiremos a nuestro dataframe la columna de sexo y despues con la libreria dplyr calcularemos el % de distribuion de sexo por cluster. Como vemos la distribucion no es uniforme, si es verdad que las mujeres estan en minoria en todos los grupos, pero tenemos el primer cluster con un 23 % de mujeres y el ultimo cluster con un 13 %, una diferencia del 10 % es muy grade, podemos decir que ladistribucion no es uniforme. Por ultimo haremos una representacion grafica que hara que visualmente se pueda apreciar mejor la distribucion. Para ello utilizaremos 2 librerias, reshape que usaremos para que las 2 columnas de % se queden en una sola columna y ggplot para representarlo graficamente.
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# Pon aquí los comandos de R en caso de ser necesario.
+library(dplyr)
+library(reshape2)
+library(ggplot2)
+
+clus_jerarquico$sexo <- Cartera$Sexo
+
+clusters_por_sexo <- clus_jerarquico %>%
+                        group_by(clusterJerar) %>%
+                        summarise(numero_mujeres = sum(sexo == 'Mujer'),
+                                  numero_hombres = sum(sexo == 'Hombre'),
+                                  total = sum(sexo == 'Mujer' | sexo == 'Hombre'),
+                                  prcnt_mujeres = numero_mujeres / total * 100,
+                                  prcnt_hombres = numero_hombres / total * 100) %>%
+                        select(clusterJerar, prcnt_mujeres, prcnt_hombres)
+
+clusters_por_sexo
+
+clusters_por_sexo.long<-melt(clusters_por_sexo, id.vars = "clusterJerar")
+ggplot(clusters_por_sexo.long,aes(clusterJerar,value,fill=variable))+
+     geom_bar(stat="identity",position="dodge")
+```
+
+******
+##Ejercicio 5
+******
+En el apartado sobre la *_elección del número de clústers_* del algoritmo kmeans se muestra un gráfico que toma como variable referencia la suma de cuadrados entre '$betweenss'.
+
+Dibuja un gráfico equivalente, tomando como referencia la suma de cuadrados en '$tot.withinss' e interpreta el resultado proponiendo un número de clústers adecuado para el juego de datos.
+
+******
+##Respuesta 5
+******
+
+Nos interesa encontrar el punto en el que la distancia es muy pequeña, en este caso es a la inversa que el anterior. Se vuelve a escoger 5 clusters.
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# Pon aquí los comandos de R en caso de ser necesario.
+set.seed(123)
+bss <- kmeans(clus_norm,centers=1)$tot.withinss
+ for (i in 2:10) bss[i] <- kmeans(clus_norm,centers=i)$tot.withinss
+
+plot(1:10, bss, type="l", xlab="Número de grupos",ylab="Sumas de cuadrados dentro de grupos")
+
+```
+
+******
+## Ejercicio 6
+******
+Al presentar los resultados al responsable del negocio, este nos indica que le gustaría incluir la variable sri (Urbano, No urbano) en el análisis. ¿Es posible incluirlo en la segmentación como una variable más?. En caso afirmativo, realizar dicha inclusión y construir una segmentación kmeans con k=4. En caso contrario, indicar el motivo por el que no se puede incluir.
+
+******
+## Respuesta 6
+******
+
+Urbano y no urbano si se puede incluir en el dataset. Debemos cmbiar primero el factor de sri a numerico para poder usarlo en nuestro cluster y lo normalizamos, despues etrenamos el modelo de la misma manera que se ha hecho en el ejemplo pero, cambiandole el numero de cluster a 4. Vemos que al añadir el sri 
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# Pon aquí los comandos de R en caso de ser necesario.
+
+clus<-Cartera[,c("sin","ant_comp","ant_perm","edad","ant_veh","sri")]
+
+levels(clus$sri) <- c(0,1)
+clus$sri <- as.numeric(clus$sri)
+
+clus_norm<-clus
+
+clus_norm[,c("sin")] <- (clus$sin-mean(clus$sin))/sd(clus$sin)
+clus_norm[,c("ant_comp")] <- (clus$ant_comp-mean(clus$ant_comp))/sd(clus$ant_comp)
+clus_norm[,c("ant_perm")] <- (clus$ant_perm-mean(clus$ant_perm))/sd(clus$ant_perm)
+clus_norm[,c("edad")] <- (clus$edad-mean(clus$edad))/sd(clus$edad)
+clus_norm[,c("ant_veh")] <- (clus$ant_veh-mean(clus$ant_veh))/sd(clus$ant_veh)
+clus_norm[,c("sri")] <- (clus$sri-mean(clus$sri))/sd(clus$sri)
+
+clus_kmeans4=clus
+
+NumCluster=4
+set.seed(123)
+Modelo4=kmeans(clus_norm,NumCluster)
+clus_kmeans4$clusterKmeans= Modelo4$cluster
+head(clus_kmeans4)
+
+aggregate(.~clusterKmeans,FUN=mean, data=clus_kmeans4)
+
+```
+
+
+
+
+
+
+
+
+
+
