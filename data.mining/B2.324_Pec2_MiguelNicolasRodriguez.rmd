@@ -1,0 +1,110 @@
+---
+title: "B2.324-PEC2-MiguelNicolasRodriguez"
+author: "Miguel Nicolas Rodriguez"
+date: "14 de mayo de 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 1
+
+Cargamos los datos en csv
+
+```{r load}
+X = read.csv("nbasal.csv", header = TRUE, encoding="UTF-8")
+```
+
+# 2 Consulta de datos cargados
+
+## 2.1
+
+Consultar el resumen de la variable wage y el tipo de datos. Como vemos es de tipo numerico
+
+```{r pressure,}
+summary(X$wage)
+str(X$wage)
+```
+
+## 2.2
+
+Mostrar un boxplot con la distribución de la variable wage
+
+```{r boxplot wage}
+boxplot(X$wage)
+```
+
+# 3 Descripción de la muestra
+
+## 3.1
+
+Calcular la media y la desviacion muestral
+
+```{r}
+mean(X$wage)
+sd(X$wage)
+```
+
+# 4 Calculamos el intervalo de confianza de salario esperado de un jugador de la NBA a nivel poblacional con un nivel de confianza de 99%
+
+## 4.1 Calcular el intervalo de confianza de 99% de la media poblacional. Suponed que conocéis la desviación estándard de la población (usad la desviación de la muestra) y podéis usar el estadístico z.
+
+```{r}
+media <- mean(X$wage)
+desviacion_standard <- sd(X$wage)
+alpha <- 1 - 0.99
+n <- length(X$wage)
+
+error <- qnorm(1 - alpha /2) * desviacion_standard / sqrt(n)
+
+extremo_izq <- media - error
+
+extremo_der <- media + error
+
+extremo_izq
+extremo_der
+
+```
+
+## 4.2. Repetir los cálculos para el estadístico t de Student
+
+```{r}
+t.test(X$wage)
+```
+
+
+## 4.3. Responder a las siguientes preguntas: ¿Es más estrecho el intervalo de confianza usando la distribución normal o la distribución t de Student? ¿Por qué? ¿Qué intervalo de confianza crees que es el más adecuado con nuestros datos y por qué? Contestar brevemente.
+
+Es mas estrcho usando la t-student ya que usa el 95%, con nuestros datos la mejor distribucion seria la de 95% ya que nos encontramos con grandes extremos en nuestro dataset.
+
+# 5 Análisis de correlaciones ¿Hay correlación lineal entre salario de los jugadores y los puntos medios por partido?
+
+## 5.1. Mostramos un scatter plot con las dos variables: wage y points para ver visualmente si hay correlación lineal.
+
+```{r}
+plot(X$wage, X$points, main="Scatterplot Example",
+   xlab="Salario ", ylab="Puntos ") 
+```
+
+## 5.2. Calculamos el coeficiente de correlación lineal entre estas dos variables
+
+```{r}
+cor(X$wage, X$points)
+```
+
+## 5.3. Razonar sobre el resultado del coeficiente en relación al valor y al signo (positivo o negativo).
+
+Vemos como tiene una correlacion leve positiva, en la que como se puede intuir en el grafico, si una de las clases sube, la otra tiene tambien tendencia a subir.
+
+# 6 Regresión: ¿Podemos suponer que las variables de minutos jugados por temporada y puntos medios por partido son unas buenas variables explicativas para poder predecir el comportamiento de la salario de los jugadores de la NBA?
+
+## 6.1. Calculad dos modelos lineales de regresión, donde salario de los jugadores se relaciona con minutos jugados por temporada y puntos medios por partido con constante y sin constante. Usar la función lm de R.
+
+```{r}
+
+```
+
+
+
