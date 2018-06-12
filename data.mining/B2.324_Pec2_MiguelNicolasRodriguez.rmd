@@ -113,13 +113,38 @@ Vemos como tiene una correlacion leve positiva, en la que como se puede intuir e
 Calculamos con constante y sin constante.
 
 ```{r}
-cons_lm <- lm(wage ~ minutes + points, data=X)
-sin_lm <- lm(wage ~ 0 + minutes + points, data=X)
+wage <- X$wage
+minutes <- X$minutes
+points <- X$points
+
+lm_puntos_primero <- lm(wage ~ points)
+lm_puntos_segundo <- lm(wage ~ 0 + points)
+
+
+lm_puntos_primero
+lm_puntos_segundo
 ```
 
-Mostramos los resultados
+## 6.2 Mostrad el resultado de los modelos lineales obtenidos, los coeficientes, etc..
 
 ```{r}
+plot(wage,points)
+abline(lm_primero)
+plot(wage,points)
+abline(lm_segundo)
+```
+
+```{r}
+lm_primero$coefficients[[1]]
+lm_segundo$coefficients[[1]]
+```
+
+## 6.3. Estimad el salario que tendría un jugador que anotara 20 puntos en promedio por partido y jugara 2000 minutos por temporada, a partir de los coeficientes del modelo lineal sin constante.
+
+```{r}
+cons_lm <- lm(wage ~ minutes + points, data=X)
+sin_lm <- lm(wage ~ 0 + minutes + points, data=X)
+
 cons_lm 
 sin_lm
 ```
@@ -160,6 +185,12 @@ Sacamos un summary de los dos modelos
 summary(cons_lm)
 summary(sin_lm)
 ```
+
+
+
+
+
+
 
 
 
