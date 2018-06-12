@@ -1,0 +1,142 @@
+---
+title: "PEC 3"
+author: "Miguel Nicolas Rodriguez Martinez"
+output: html_notebook
+---
+
+# 1 Fuente de datos
+
+https://www.kaggle.com/jtrofe/beer-recipes
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(corrplot)
+library(reshape2)
+```
+
+
+# 2 Preparar el juego de datos
+
+Primero leemos el conjunto de datos.
+
+```{r}
+beer <- read.csv("recipeData.csv", encoding="UTF-16", header=TRUE, na.strings="NA")
+```
+
+Para conocer mas nuestro dataset mostramos un summary y los tipos de datos con los que tenemos
+
+
+```{r}
+dim(beer)
+summary(beer)
+str(beer)
+```
+
+Transformamos y limpiamos.
+
+```{r}
+beer$BoilGravity <- as.numeric(beer$BoilGravity)
+beer$MashThickness <- as.numeric(beer$MashThickness)
+beer$PitchRate <- as.numeric(beer$PitchRate)
+beer$PrimaryTemp <- as.numeric(beer$PrimaryTemp)
+clean_beer <- beer[complete.cases(beer), ]
+dim(clean_beer)
+```
+
+# 3 Comparar medias entre grupos
+
+## 3.1 Media y desviación de alcohol por volumen
+
+Sacamos media y desviacion standard de ABV segun su brew method
+
+```{r}
+mean_sd_clean_beer <- clean_beer %>%
+  group_by(BrewMethod) %>%
+  summarise(mean = mean(ABV),
+            sd = sd(ABV))
+
+mean_sd_clean_beer
+```
+
+Mostramos un boxplot
+
+```{r}
+boxplot(ABV~BrewMethod,data=clean_beer, main="Distribucion de alcohol por volumen para cada tipo de distribbucion",
+   xlab="Metodo", ylab="Volumen") 
+```
+
+## 3.2 Means
+
+Guardamos en la variable mean la informacion de ABV y lo visualizamos
+
+```{r}
+means <- mean_sd_clean_beer %>%
+  select(BrewMethod, mean)
+
+ggplot(means, aes(BrewMethod, mean)) + 
+  geom_bar(stat="identity", position = "dodge") + 
+  scale_fill_brewer(palette = "Set1")
+```
+
+## 3.3 ANOVA
+
+Usamos la funcion aov para realizar una analisis de anova y ver la variabilidad entre los diferentes metodos
+
+```{r}
+myaov <- aov(ABV~BrewMethod, beer)
+myaov
+summary(myaov)
+```
+
+## 3.4 Comprobar los cálculos
+
+## 3.5 Tests a posteriori
+
+# 4 Componentes principales
+
+## 4.1 Preparación de datos
+
+```{r}
+beerpc <- clean_beer %>% 
+  select(Size.L., OG, FG, ABV, IBU, Color, BoilSize, BoilTime, BoilGravity, Efficiency, MashThickness, PitchRate, PrimaryTemp)
+```
+
+## 4.2 Matriz de correlación
+
+Mostramos las correlaciones entre las variables
+
+```{r}
+corrplot(cor(beerpc), method = "number")
+```
+
+Vemos como hay una correlacion muy alta entre boilsize y size l, al igual que tambien hay una correlacion alta entre fg y og. Entre las demas varaibles no hay una correlacion que destaque, la mayor es de 0.43 entre og y boilgravity.
+
+## 4.3 PCA
+
+Calculamos el modelo PCA
+
+```{r}
+pca <- prcomp(beerpc)
+summary(pca)
+```
+
+## 4.4 Estandarización
+
+Calculamos PCA estandarizado y comparamos resultados.
+
+```{r}
+pca_standard <- prcomp(beerpc, scale. = TRUE)
+summary(pca_standard)
+```
+
+Vemos como los resultados dan mucho mas bajos, sobre todo en la desviacion standard, esto ocurre por la variabilidad, al scalarlo y estandarizar los resultados entre dos numeros iguales para todas las variables es mas factible la comparacion.
+
+## 4.5 Visualizar el modelo generado
+
+
+
+```{r}
+pairs(~PC1+PC2+PC3+PC5+PC6+PC7+PC8+PC9+PC10+PC11+PC12+PC13, data=pca_standard$rotation)
+```
+

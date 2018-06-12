@@ -1,0 +1,602 @@
+---
+title: 'Algoritmos de clasificación : SVM, Árboles de decisión simples y múltiples (random forest)'
+author: "UOC - Master BI - Business Analytics (Nombre Estudiante)"
+date: "Mayo de 2018"
+output:
+  html_document:
+    fig_height: 5
+    fig_width: 7
+    number_sections: yes
+    theme: journal
+    toc: yes
+    toc_depth: 2
+  pdf_document:
+    toc: yes
+  word_document: default
+---
+
+******
+# Base teórica
+******
+
+Esta práctica se basa en un ejemplo de **algoritmos de clasificación**. Durante la práctica se ilustran conceptos generales de metodologías de clasificación de algoritmos así como algunas técnicas habituales como son **SVM** y **Árboles de decisión**.  
+
+Cuando se trabajan con algoritmos de clasificación, es importante preparar de forma adecuada los conjuntos de entrenamiento (train set) y validación (validation set o test set). Los modelos se entrenan estrictamente con el conjunto de entrenamiento y, a continuación, se valida el modelo resultante sobre el conjunto de validación. Lo habitual es que el algoritmo funcione mejor con los datos de entrenamiento que con los datos de validación (que nunca ha visto antes). A este fenómeno se le llama sobreentrenamiento (**overfitting**) y es uno de los puntos clave a tener en cuenta cuando se implementa un sistema de clasificación, puesto que refleja la capacidad del modelo de generar resultados correctos frente a datos a los que no ha estado expuesto previamente.
+
+**SVM (Support Vector Machines o máquinas de soporte vectorial)** tiene como objetivo encontrar el hiperplano óptimo que maximiza el margen entre clases (variable objetivo) del juego de datos de entrenamiento. Definiremos el margen como la zona de separación entre los distintos grupos a clasificar. Esta zona de separación quedará delimitada a través de hiperplanos. Las SVM buscan maximizar el margen entre los puntos pertenecientes a los distintos grupos a clasificar. Maximizar el margen implica que el hiperplano de decisión o separación esté diseñado de tal forma que el máximo número de futuros puntos queden bien clasificados 
+
+Los **Árboles de decisión** son algoritmos que construyen modelos de decisión que forman estructuras similares a los diagramas de flujo, donde los nodos internos suelen ser puntos de decisión sobre un atributo del juego de datos. Son muy dependientes del concepto de ganancia de la información ya que es el criterio que utilizan para construir las ramificaciones del árbol.
+A grandes rasgos existen dos tipos de árboles de decisión:
+* _Árboles de decisión simples_: el resultado se construye mediante un proceso de clasificación.
+* _Árboles de decisión múltiples (random forest)_: el resultado se construye mediante el desarrollo iterativo de *n* procesos de clasificación.
+ 
+Aparte de los modelos propuestos en esta práctica, existe una gran variedad de alternativas de distinta complejidad, como los **modelos lineales generalizados**, los **métodos basados en kernel** o **redes neuronales**.
+
+**Recursos en la web:**  
+
+* [Wikipedia: K-NN (k-vecinos más cercanos)](https://es.wikipedia.org/wiki/K-vecinos_m%C3%A1s_cercanos)  
+* [Wikipedia: Árbol de decisión simple](https://es.wikipedia.org/wiki/%C3%81rbol_de_decisi%C3%B3n)  
+* [Wikipedia: Árbol de decisión múltiple (Random forest)](https://es.wikipedia.org/wiki/Random_forest))  
+
+* [A Detailed Introduction to K-Nearest Neighbor (K-NN) Algorithm](https://saravananthirumuruganathan.wordpress.com/2010/05/17/a-detailed-introduction-to-k-nearest-neighbor-knn-algorithm/)  
+
+* [A Brief Tour of the Trees and Forests](http://www.r-bloggers.com/a-brief-tour-of-the-trees-and-forests/)  
+
+* [Linear classifiers] https://en.wikipedia.org/wiki/Linear_classifier
+* [Generalized linear models] https://es.wikipedia.org/wiki/Modelo_lineal_generalizado
+* [Kernel methods & SVM] https://en.wikipedia.org/wiki/Kernel_method
+* [Neural networks] https://en.wikipedia.org/wiki/Artificial_neural_network
+
+******
+# Caso de estudio: ---  Clasificación red de ventas Bodegas Mureda  ---
+******
+Formamos parte de la Dirección Comercial de la Bodega de vinos **Mureda** y queremos analizar la actividad de nuestra red de ventas, formada por tres categorías de comerciales (A, B y C). Para ello, estamos interesados en conocer:
+* si existen diferencias en la actividad generada por cada uno de los comerciales
+* en caso afirmativo:
+  * identificar cuáles son las variables que más contribuyen a dichas diferencias
+  * predecir a qué categoría de comercial pertenece un nuevo empleado en función de su actividad. 
+
+Para ello, nuestro equipo de análisis dispone de un fichero con información de 150 clientes que recoge estadísticas de actividad de los tres grupos de Comerciales, a razón de 50 registros por grupo de comercial. El fichero contiene información de las siguientes variables:  
+
+* _Importe_: Volumen de Facturación en el Cliente (vinculado a una categoría de Comercial)  
+
+* _Margen_: Margen por Cliente (vinculado a una categoría de Comercial)  
+
+* _Km_: Kilómetros recorridos para visitar al Cliente.
+
+* _Visitas_: Visitas realizadas al Cliente.
+
+* _Comercial_: Categoría de comercial asignada al cliente (Toma valores A, B ó C)  
+
+
+
+Una vez definidos los objetivos de nuestra investigación, nuestro departamento de análisis nos propone desarrollar un proceso de clasificación que aplique distintos modelos y que estudiemos qué algoritmos nos permiten extraer mejores resultados sobre nuestro conjunto de datos.
+
+
+******
+# Apartados de la práctica
+******
+El código R que utilizaremos en la práctica se divide en apartados según las tareas que iremos realizando:  
+
+**Apartados práctica:**  
+
+* Carga de paquetes necesarios y fichero  
+
+* Análisis univariable y bivariable de los datos  
+
+    + Descriptivos de las variables del fichero  
+    
+    + Estudio de la relación entre variables  
+    
+    + Comparación de las variables por tipo de Comercial  
+    
+* Preparación de los conjuntos de entrenamiento y validación
+
+* Clasificación de los clientes con _SVM_ 
+
+    + Construcción del Modelo de clasificación con _SVM_  
+    
+    + Validación del Modelo de clasificación con _SVM_  
+    
+* Clasificación de los clientes con árboles de decisión simples  
+
+    + Construcción del Modelo de clasificación con el paquete _rpart_  
+    
+    + Validación del Modelo de clasificación con el paquete _rpart_  
+    
+* Clasificación de los clientes con árboles de decisión múltiples (_random forest_)  
+
+    + Construcción del Modelo de clasificación con el paquete _randomForest_  
+    
+    + Validación del Modelo de clasificación con el paquete _randomForest_  
+
+******
+# Carga de paquetes y del fichero de datos
+******
+Empezaremos por cargar los packages R que necesitaremos tener en memoria.
+
+Cargamos también los datos ubicados en el fichero PEC3.csv 
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# Cargamos los paquetes necesarios para desarrollar la PEC
+
+#   Para representar gráficamente la relación entre variables
+library("ggplot2")
+#   Para clasificar con SVM
+library('e1071')
+#   Para clasificar con K-NN
+library("class")
+#   Para clasificar con rpart
+library("rpart")
+library("rpart.plot")
+library("useful")
+#   Para clasificar con randomForest
+library("randomForest")
+library("BBmisc")
+# Cargamos el fichero de datos que utilizamos para desarrollar la PEC
+nombreruta_PEC <- paste(getwd(),"/PEC3.csv", sep = "")
+Data_PEC <- read.csv(nombreruta_PEC, encoding="UTF-8",
+                      header=TRUE, sep=",", na.strings="NA", dec=".", strip.white=TRUE)
+```
+
+******
+# Análisis univariable y bivariable del fichero
+******
+
+La primera fase del análisis consiste siempre en un análisis descriptivo de las variables incluidas en el fichero y de la relación existente entre ellas. Para ello, aplicamos la siguiente secuencia de cálculos y representaciones gráficas.
+
+1. Estadísticos descriptivos de las variables
+2. Representación gráfica de cada una de las variables 
+3. Estudio de la relación entre las variables cuantitativas
+4. Estudio de la existencia de diferencias por comercial
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# 1.Calculamos los descriptivos univariables de las variables del fichero
+summary(Data_PEC) #Estadísticos descriptivos básicos de las variables
+```
+
+Algunos de los estadísticos descriptivos de posición que caracterizan a las 5 variables son: 
+
+* _Importe_: Promedio de 5.843, Máximo 7.900, Mínimo 4.300  
+
+* _Margen_: Promedio de 305,4, Máximo 440, Mínimo 200  
+
+* _Km_: Promedio de 37,59, Máximo 69, Mínimo 10  
+
+* _Visitas_: Promedio de 11,99, Máximo 25, Mínimo 1
+
+* _Comercial_: 50 observaciones por comercial  
+
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+
+# 2.Representamos gráficamente las variables del fichero mediante histogramas
+
+#Histograma Ingresos
+f1 <- hist(Data_PEC$Ingresos, main="Histograma Ingresos", col = "gray", labels = TRUE) 
+f1
+#Histograma Margen
+f2 <- hist(Data_PEC$Margen, main="Histograma Margen", col = "gray", labels = TRUE)
+f2
+#Histograma Km
+f3 <- hist(Data_PEC$Km, main="Histograma Km", col = "gray", labels = TRUE)
+f3
+#Histograma Visitas
+f4 <- hist(Data_PEC$Visitas, main="Histograma Visitas", col = "gray", labels = TRUE)
+f4
+#Histograma Comercial
+f5 <- plot(Data_PEC$Comercial)
+f5
+```
+
+Las variables cuantitativas presentan dos distribuciones diferenciadas:  
+
+* _Importe_ y _Margen_ presentan una distribución similar a una campana de _Gauss_, algo más concentrada en el caso de _Margen_  
+
+* _Km_ y _Visitas_ presentan una distribución muy similar. Con una alta concentración para valores bajos que desciende rápidamente para volver a crecer siguiendo una campana de _Gauss_ a partir del tercer valor de la serie.  
+
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# 3.Estudiamos la relación existente entre las variables del fichero
+
+# Estudiamos la relación entre variables mediante gráficos de dispersión
+f6<- plot(Data_PEC)                                              
+f6
+# Estudiamos la relación entre variables cuantitativas mediante correlaciones
+cor(Data_PEC[,c("Ingresos","Margen","Km","Visitas")], use="complete")
+```
+
+Analizando los gráficos de dispersión, apuntamos una fuerte relación entre _Visitas_-_Km_, _Ingresos_-_Km_, _Margen_-_Km_ e _Ingresos_-_Visitas_ que podemos validar con el coeficiente de correlación, estadístico que toma valores entre -1 y 1 y que mide la fuerza con la que dos variables quedan interrelacionadas (próximo a 1 cuando la relación es fuertemente directa y próximo a -1 cuando la relación es fuertemente inversa)  
+
+
+* Coeficiente de Correlación _Visitas_-_Km_ -> (0,96)  
+
+* Coeficiente de Correlación _Ingresos_-_Km_ -> (0,87)  
+
+* Coeficiente de Correlación _Ingresos_-_Visitas_ -> (0,82)  
+
+* Coeficiente de Correlación _Margen_-_Km_ -> (-0,42)  
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# Estudiamos la relación entre variables Km y Visitas
+f7<-ggplot(Data_PEC, aes(x=Km, y=Visitas)) + geom_point()
+f7
+# Estudiamos la relación entre variables Km y Visitas con tamañoo ingresos
+f8<-ggplot(Data_PEC, aes(x=Km, y=Visitas)) + geom_point(aes(size=Ingresos))
+f8
+# Relación entre variables Km y Visitas con tamaño margen
+f9<-ggplot(Data_PEC, aes(x=Km, y=Visitas)) + geom_point(aes(size=Margen))
+f9
+# Relación entre variables Km y Visitas con tamaño margen
+fA<-ggplot(Data_PEC, aes(x=Km, y=Margen)) + geom_point(aes(size=Ingresos))
+fA
+
+# 3.Estudiamos la existencia de diferencias por Comercial
+
+# promedio variables por comercial 
+tapply(Data_PEC$Ingresos,Data_PEC$Comercial,mean)
+tapply(Data_PEC$Margen,Data_PEC$Comercial,mean)
+tapply(Data_PEC$Km,Data_PEC$Comercial,mean)
+tapply(Data_PEC$Visitas,Data_PEC$Comercial,mean)
+```
+
+Vemos que existen diferencias remarcables en el promedio de cada una de las variables para cada Comercial:  
+
+* El Comercial C es el Comercial con un _Importe_ promedio mayor, con una valor ligeramente superior al de B  
+* El Comercial A es el Comercial con un _Margen_ promedio mayor  
+
+* El Comercial C es el Comercial que hace más _Visitas_ en promedio  
+
+* El Comercial C es el Comercial que hace más _Km_ en promedio, con un valor que es prácticamente el doble que el del B  
+
+
+Graficamos a continuación las variables cuantitativas diferenciando por Comercial.
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# Relación entre variables Km y Visitas con tamaño ingresos y Color según Comercial
+f10<-ggplot(Data_PEC, aes(x=Km, y=Visitas, color=Comercial)) + geom_point(aes(size=Ingresos))
+f10
+# Relación entre variables Km y Visitas con tamaño ingresos y Color según Comercial, línea tendencia y elipse
+f11<-ggplot(Data_PEC, aes(x=Km, y=Visitas, color=Comercial)) + geom_point(aes(size=Ingresos)) + geom_smooth(method=lm, aes(fill=Comercial))+ stat_ellipse(type = "norm")
+f11
+```
+
+Identificamos un comportamiento diferenciado donde _Km_ y _Visitas_ ya que son las variables que presentan una mayor capacidad de diferenciación.
+
+
+******
+# Preparación de los conjuntos de entrenamiento y validación
+******
+
+Construimos un **juego de datos de entrenamiento** con el 70% de registros para construir los modelos y un **juego de datos de pruebas o validación** con el 30% de registros restantes para validar los modelos. Esta separación de ambos conjuntos es aleatoria.
+
+Separamos los datos en entrenamiento y validación antes de proceder con el resto de ejercicios para asegurar que los datos de entrenamiento y validación son iguales en todos los casos y los resultados son comparables. Si lo hiciésemos de otro modo, las diferencias en la calidad de los modelos podrían ser debidas a una separación distinta entre los conjuntos de entrenamiento y validación.
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# Dividimos el fichero en 70% entreno y 30% validación  #
+set.seed(1234)  # Seed inicializa el generador de números aleatorios que usaremos para separar los datos en train y test. Usando un seed fijo, nos aseguramos de que todos generamos los mismos conjuntos y los resultados son reproducibles
+ind <- sample(2, nrow(Data_PEC), replace=TRUE, prob=c(0.7, 0.3))
+trainData <- Data_PEC[ind==1,]
+testData <- Data_PEC[ind==2,]
+```
+
+
+******
+# Proceso de clasificación mediante SVM.
+******
+
+**Aplicamos el modelo SVM**, pasándole como parámetros la matriz de entrenamiento compuesta por las 4 variables cuantitativas : _Importe_, _Margen_, _Km_ y _Visitas_. No le pasamos el campo _Comercial_ porque precisamente es el campo que el algoritmo debe predecir.  
+
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# Entrenamos el modelo SVM
+model_svm = svm(trainData[,1:4], trainData$Comercial)
+# Usamos el modelo que hemos entrenado para generar una predicción para cada muestra del conjunto de validación 
+preds_svm = predict(model_svm, testData[,1:4])
+# Calculamos el % de aciertos de nuestro modelo
+sum(preds_svm == testData$Comercial)/ length(testData$Comercial)*100
+```
+
+Evaluamos el % de acierto del modelo SVM que hemos entrenado. 
+
+SVM genera un 94.73% de acierto sobre los datos propuestos.
+
+******
+# Proceso de clasificación mediante Árboles de decisión simples
+******
+
+Para construir un árbol de decisión es necesario definir una función que relaciona una variable categórica dependiente (factor) con _n_ variables independientes que pueden ser categóricas o numéricas. En nuestro caso trabajaremos con:  
+
+* 1 variable factor dependiente -> _Comercial_  
+
+* 4 variables independientes -> _Ingresos_, _Margen_, _Km_ y _Visitas_  
+
+
+El algoritmo de clasificación busca cuál es la variable que permite obtener una submuestra más diferenciada para la variable dependiente (_Comercial_ en nuestro caso) e identifica también qué intervalos (si la variable es cuantitativa) ó agrupación de categorías de la/s variable/s independiente/s permitiría/n maximizar dicha división. 
+
+Una vez identificada la variable independiente que permite obtener la clasificación con una mayor capacidad de diferenciación, el proceso se repite reiterativamente en cada uno de los nodos obtenidos hasta que el algoritmo no encuentra diferencias significativas que le permitan seguir profundizando en los nodos. 
+
+Una vez obtenido una primera versión del árbol, existen algoritmos que permiten hacer un podado del árbol (_prunning_), eliminando aquellas ramas que no acaban de justificar su presencia de acuerdo con algunos parámetros preestablecidos.  
+
+En todos los casos seguiremos la siguiente secuencia de pasos para obtener los Árboles de clasificación:  
+
+1. Definir la función que relaciona la variable dependiente con las variables independientes  
+
+2. Estimar el árbol de decisión  
+
+3. Representar gráficamente una primera versión del árbol  
+
+  + Estudiar la aplicación práctica del resultado obtenido  
+  
+  + Podar el árbol (si el algoritmo admite podado)  
+  
+4. Estudiar la capacidad predictiva del árbol  
+
+
+Estudiamos a continuación la capacidad predictiva del Árbol de decisión simple obtenido mediante el paquete *rpart*
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+#Declaramos función del árbol
+ArbolRpart = Comercial ~ Ingresos + Margen + Km + Visitas
+#Aplicamos algoritmo
+model_tree = rpart(ArbolRpart, method="class", data=trainData)
+# Validamos la capacidad de predicción del árbol con el fichero de validación
+preds_tree <- predict(model_tree, newdata = testData, type = "class")
+# Visualizamos una matriz de confusión
+table(preds_tree, testData$Comercial)
+# Calculamos el % de aciertos 
+sum(preds_tree == testData$Comercial)/ length(testData$Comercial)*100
+```
+
+El árbol de decisión obtenido mediante el paquete *rpart* clasifica correctamente un 94,73% de los registros. Un resultado bastante alto y aceptable.  
+  
+Una vez construida una primera versión del árbol, estudiamos la viabilidad de un podado de árbol.
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# Podado del árbol
+pruned_tree_model <- prune(model_tree, cp= model_tree$cptable[which.min(model_tree$cptable[,"xerror"]),"CP"])
+pruned_tree_model <- prune(pruned_tree_model, cp= 0.02)
+# Representación del árbol podado
+f14<-rpart.plot(pruned_tree_model,extra=4) #visualizamos el árbol
+f14
+```
+  
+Dado que el árbol original es muy simple. El podado no devuelve ninguna versión nueva reducida.
+  
+******
+# Proceso de clasificación mediante árboles de decisión múltiples (paquete randomForest)
+******
+
+Una vez evaluada la capacidad predictiva del algoritmo *SVM*, y los árboles de decisión simples obtenidos mediante el paquete *rpart*, estimamos el modelo que obtendríamos si ejecutásemos _n_ árboles de decisión simultáneamente (para _n_=100 en nuestro caso) mediante el algoritmo *randomForest*.
+
+El algoritmo *randomForest* es un método de estimación combinado, donde el resultado de la estimación se construye a partir de los resultados obtenidos mediante el cálculo de _n_ árboles donde los predictores son incluidos al azar. 
+
+Es un método complejo con ventajas e inconvenientes respecto a los árboles de clasificación simples:  
+
+*Ventajas*  
+
+* Es uno de los algoritmos de aprendizaje más precisos  
+
+* Se ejecuta eficientemente en grandes bases de datos  
+
+* Permite trabajar con cientos de variables independientes sin excluir ninguna  
+
+* Determina la importancia en la clasificación de cada variable  
+
+* Recupera eficazmente los valores perdidos de un dataset (_missings_)  
+
+* Permite evaluar la ganancia en clasificación obtenida a medida que incrementamos el número de árboles generados en el modelo.  
+
+
+*Inconvenientes*  
+
+* A diferencia de los árboles de decisión, la clasificación hecha por _random forests_ es difícil de interpretar  
+
+* Favorece las variables categóricas que tienen un mayor número de niveles por encima de aquéllas que tienen un número de categoría más reducido. Comprometiendo la fiabilidad del modelo para este tipo de datos.  
+
+* Favorece los grupos más pequeños cuando las variables están correlacionadas  
+
+* randomForest sobreajusta en ciertos grupos de datos con tareas de clasificación/regresión ruidosas  
+
+
+
+  
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+set.seed(12)
+#Declaramos función del árbol
+ArbolRF <- Comercial ~ Ingresos + Margen + Km + Visitas
+#Aplicamos algoritmo
+model_random_forest <- randomForest(ArbolRF, data=trainData, ntree=500,proximity=T,nodesize=5) #indicamos el número de árboles mediante ntree=500
+#Obtenemos la importancia de cada variable en el proceso de clasificación
+importance(model_random_forest)      #Importancia de las variables en formato text
+f15<-varImpPlot(model_random_forest) #Importancia de las variables en formato gráfico
+f15
+#evolución del error según el número de árboles
+f16<-plot(model_random_forest, main = "")  
+head(f16)
+# Validamos la capacidad de predicción del árbol con el fichero de validación
+preds_random_forest <- predict(model_random_forest, newdata = testData)
+table(preds_random_forest, testData$Comercial)
+# Calculamos el % de aciertos 
+sum(preds_random_forest == testData$Comercial)/ length(testData$Comercial)*100
+```
+
+El árbol de decisión obtenido mediante el paquete *randomForest* clasifica correctamente un 97,36% de los registros. Un resultado bastante alto y aceptable.  
+
+******
+# Ejercicios
+******
+
+## Pregunta 1
+
+Al inicio de la práctica hemos separado el conjunto de datos en entrenamiento y validación y hemos entrenado el modelo usando sólo el conjunto de entrenamiento. A continuación, hemos comprobado si el modelo había aprendido mediante el conjunto de validación. Explicad por qué es importante separar los datos en dos conjuntos sin solapamiento. ¿Qué sucedería si usamos todo el conjunto de datos para entrenar y no apartamos unas muestras para validar? 
+
+Ilustrad vuestra explicación empíricamente. Usad el modelo 'model_svm' que hemos entrenado durante la práctica y utilizadlo para generar predicciones sobre los datos de entrenamiento. A continuación haced lo mismo usando el conjunto de validación. Puede usar el siguiente código de muestra para generar las predicciones propuestas. Calcule el índice de aciertos en cada caso y justifique el resultado.
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+# Vamos a utilizar el modelo entrenado previamente (model_svm)
+## Generamos predicciones sobre los datos de train
+predicions_on_train_svm = predict(model_svm, trainData[,1:4], type = 'class')
+## Generamos predicciones sobre los datos de validación
+predicions_on_test_svm  = predict(model_svm,  testData[,1:4], type = 'class')
+```
+
+## Respuesta 1
+
+Se generan dos conjuntos de datos para que la validacion sea independiente del entrenamiento, es decir, si usaramos el dataset entero para entrenar y luego tambien para validar, nuestra validacion estaria contaminada ya que nuestro modelo estaria entrenado especificamente para esos datos.
+
+```{r}
+# Predicciones, una con el propio dataset de entrenamiento y otra con el de test
+predicions_on_train_svm = predict(model_svm, trainData[,1:4], type = 'class')
+predicions_on_test_svm  = predict(model_svm,  testData[,1:4], type = 'class')
+
+# % de acierto
+sum(predicions_on_train_svm == trainData$Comercial)/ length(trainData$Comercial)*100
+sum(predicions_on_test_svm == testData$Comercial)/ length(testData$Comercial)*100
+```
+
+## Pregunta 2
+
+A la vista de los resultados que se muestran a continuación, es el algoritmo SVM un algoritmo determinístico? Razone la respuesta explicando detalladamente qué es y cuál es la utilidad del 'seed'.
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+set.seed(12)
+preds  = predict(model_svm, testData[,1:4], type = 'class')
+sum(preds == testData$Comercial)/ length(testData$Comercial)*100
+
+set.seed(1234)
+preds  = predict(model_svm, testData[,1:4], type = 'class')
+sum(preds == testData$Comercial)/ length(testData$Comercial)*100
+
+set.seed(12345)
+preds  = predict(model_svm, testData[,1:4], type = 'class')
+sum(preds == testData$Comercial)/ length(testData$Comercial)*100
+```
+
+## Respuesta 2
+
+Si, el algoritmo svm es un algoritmo determinista,ya que, conociendo las entradas puedes conocer las salidas. Es un clasificador que dice si un conjunto de datos son x o y. Estos estan separados por un hyperplano y es este el que determina a que categoria pertenecen. La seed lo que determina es la aleatoriedad con la que va a realizar las operaciones, la seed es una manera de poder reproducir los resultados de nuevo con la determinacion de que la manera de hacerlo es la misma.
+
+
+## Pregunta 3
+
+Explique con sus palabras en qué consiste el algoritmo SVM y qué importancia tiene el Kernel utilizado. Teniendo ésto en cuenta, ¿normalizar los datos mejora la clasificación? Ilustre su respuesta con un ejemplo.
+
+Entrene y testee un svm normalizando y sin normalizar los datos. Tenga en cuenta que 'svm' acepta un parámetro que indica si los datos deben ser o no normalizados tal como muestra el siguiente ejemplo:
+
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+example_trained_model = svm(trainData[,1:4], trainData$Comercial, scale = TRUE)
+```
+
+## Respuesta 3
+
+El algoritmo SVM es de clasoificacion como se ha dicho arriba. La importancia del kernel a utilizar es muy alta ya que este determina como variara y como se transformara la linea (el hyperplano) que separa los datos. El algoritmo se entrena y este determina la distancia entre los puntos y sus variables despues se "dibuja" una linea separando entre ambos grupos. El kernel por defecto es RBF.
+
+La normalizacion es muy importante, ya que, al estar calculando las distancias, el hecho de que una variable determine km y otra edad afectaria al algoritmo, teniendo en los kilometros una distancia mayor que en la edad, dando mas peso a los kilometros. El normalizar los datos equipara y estandariza todas las variables en un rango, haciendolas todas "iguales" ante los ojos del algoritmo.
+
+```{r}
+
+# Creamos dos modelos uno con datos normalizados y otro con datos sin normalizar
+no_normal_model_svm = svm(trainData[,1:4], trainData$Comercial, scale = FALSE)
+normal_model_svm = svm(trainData[,1:4], trainData$Comercial, scale = TRUE)
+
+# Hacemos las predicciones
+predic_no_normal_svm  = predict(no_normal_model_svm,  testData[,1:4], type = 'class')
+predic_normal_svm = predict(normal_model_svm, testData[,1:4], type = 'class')
+
+# Calculamos el % de aciertos de nuestros modelos
+sum(predic_no_normal_svm == testData$Comercial)/ length(testData$Comercial)*100
+sum(predic_normal_svm == testData$Comercial)/ length(testData$Comercial)*100
+```
+
+## Pregunta 4 
+
+Por defecto, el kernel usado en svm es RBF (Radial Basis Function). Comprobad cómo afecta el uso de un kernel lineal. ¿Qué diferencia veis entre los dos kernels cuando los datos no se estandarizan?
+
+Entrene un modelo SVM sin estandarizar (scale = False) utilizando un kernel lineal y un kernel radial. Compare los resultados y justifique la respuesta
+
+# Respuesta 4
+
+```{r}
+# Los dos modelos
+radial_svm = svm(trainData[,1:4], trainData$Comercial, scale = FALSE, kernel = "radial")
+lineal_svm = svm(trainData[,1:4], trainData$Comercial, scale = FALSE, kernel = "linear")
+
+# Predicciones
+predic_radial_svm  = predict(radial_svm,  testData[,1:4], type = 'class')
+predic_lineal_svm = predict(lineal_svm, testData[,1:4], type = 'class')
+
+# % De acierto
+sum(predic_radial_svm == testData$Comercial)/ length(testData$Comercial)*100
+sum(predic_lineal_svm == testData$Comercial)/ length(testData$Comercial)*100
+```
+
+Para datos no normalizados el kernel radial no clasifica correctamente casi el 69% de los datos, siendo asi una gran falta de precision. En cambios el linear con datos no normalizados tiene un 100% de acierto. Lo cual suena muy bien, pero clasificar el 100% de manera correcta no es algo de lo que alegrarse ya que lña experiencia nos dice que es casi imposible que se clasifique el 100% de los datos de manera correcta.
+
+## Pregunta 5
+
+Siguiendo con la pregunta anterior, qué importancia tiene normalizar los datos si el modelo utilizado es un modelo basado en Árboles (Random Forests, Decission Trees...) en lugar de un SVM?
+
+Opcionalmente, ilustre su respuesta empíricamente repitiendo el ejercicio anterior entrenando y evaluando un RandomForest normalizando y sin normalizar los datos.
+
+## Respuesta 5
+
+Em ramdom forest la distancia de una variable no afecta a las demas por lo tanto no es tan importante la normalizacion.
+
+```{r}
+set.seed(22)
+# Creamos de nuevo un indice para tener los mismos datos normalizados y no normalizados
+normal_data = normalize(Data_PEC)
+ind <- sample(2, nrow(Data_PEC), replace=TRUE, prob=c(0.7, 0.3))
+# Separamos lo datos entre train y test normalizados y no normalizados
+trainData <- Data_PEC[ind==1,]
+testData <- Data_PEC[ind==2,]
+normal_trainData <- normal_data[ind==1,]
+normal_testData <- normal_data[ind==2,]
+#Funcion
+ArbolRF <- Comercial ~ Ingresos + Margen + Km + Visitas
+#Aplicamos
+normal_random_forest <- randomForest(ArbolRF, data=normal_trainData, ntree=500,proximity=T,nodesize=5)
+random_forest <- randomForest(ArbolRF, data=trainData, ntree=500,proximity=T,nodesize=5)
+# Prediccion
+predic_normal_random_forest <- predict(normal_random_forest, newdata = normal_testData)
+predic_random_forest <- predict(random_forest, newdata = testData)
+# Precision
+sum(predic_normal_random_forest == normal_testData$Comercial)/ length(normal_testData$Comercial)*100
+sum(predic_random_forest == testData$Comercial)/ length(testData$Comercial)*100
+```
+
+Vemos que no hay diferencia entre los datos normalizados y no normalizados.
+
+## Pregunta 6
+
+Es habitual combinar los resultados de distintos modelos para reforzar sus respectivas predicciones. Este procedimiento se denomina habitualmente "ensamblado". Construya un modelo ensamblando los modelos vistos durante la práctica: SVM, el Árbol y el randomForest. ¿Mejora el ensemble las métricas obtenidas por los modelos ensamblados?
+
+Para hacerlo, construya un modelo ensamblado, es decir, para cada registro, cada modelo realiza una predicción para la categoría. El modelo ensamblado debe asignar a cada registro la categoría más repetida de las tres. Calcule el acierto del modelo resultante. Tome la variable 'models_to_ensemble' como entrada.
+
+```{r,eval=TRUE,echo=TRUE,warning=FALSE, message=FALSE}
+models_to_ensemble <- data.frame(preds_svm, preds_tree, preds_random_forest)
+```
+
+## Respuesta 6
+
+Por lo general al ser el ensemble una manera de mejorar y asegurar los resultado deberiamos ver mejores resultados, ya que unos se nutren de los otros.
+
+```{r}
+models_to_ensemble <- data.frame(preds_svm, preds_tree, preds_random_forest)
+models_to_ensemble$pred_majority<-as.factor(ifelse(models_to_ensemble$preds_svm=='A' & models_to_ensemble$preds_tree=='A','A', ifelse(models_to_ensemble$preds_svm=='A' & models_to_ensemble$preds_random_forest=='A','A', ifelse(models_to_ensemble$preds_tree=='A' & models_to_ensemble$preds_random_forest=='A','A', ifelse(models_to_ensemble$preds_svm=='B' & models_to_ensemble$preds_tree=='B','B', ifelse(models_to_ensemble$preds_svm=='B' & models_to_ensemble$preds_random_forest=='B','B', ifelse(models_to_ensemble$preds_tree=='B' & models_to_ensemble$preds_random_forest=='B','B','C')))))))
+#Evaluamos
+sum(models_to_ensemble$preds_svm == testData$Comercial)/ length(testData$Comercial)*100
+sum(models_to_ensemble$preds_tree == testData$Comercial)/ length(testData$Comercial)*100
+sum(models_to_ensemble$preds_random_forest == testData$Comercial)/ length(testData$Comercial)*100
+sum(models_to_ensemble$pred_majority == testData$Comercial)/ length(testData$Comercial)*100
+```
+
+Vemos que en nuestro caso se cumple, esto puede ser porque los modelos tienen siempre el mismo numero de aciertos y el resultado final es una muestra general de la mayoria. Cuando un resultado llega se decide la clasificacion segun lo que decide la mayoria, por lo tanto, en nuestro caso los dos primeros modelos tienen el mismo % de aciertos y estos son los que estan determinado la decision general.
+
+## Pregunta 7
+
+Explique como mínimo una forma alternativa de generar un ensemble (busque en internet distintas alternativas si le resulta necesario).
+
+

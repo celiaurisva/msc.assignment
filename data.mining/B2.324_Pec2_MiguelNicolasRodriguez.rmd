@@ -40,7 +40,7 @@ boxplot(X$wage)
 
 ## 3.1
 
-Calcular la media y la desviacion muestral
+Calcular la media y la desviacion muestral.
 
 ```{r}
 mean(X$wage)
@@ -60,7 +60,6 @@ n <- length(X$wage)
 error <- qnorm(1 - alpha /2) * desviacion_standard / sqrt(n)
 
 extremo_izq <- media - error
-
 extremo_der <- media + error
 
 extremo_izq
@@ -71,13 +70,22 @@ extremo_der
 ## 4.2. Repetir los cálculos para el estadístico t de Student
 
 ```{r}
-t.test(X$wage)
-```
+alpha <- 1 - 0.99
 
+error <- qt(( 1 - alpha / 2 ),df=n-1) * desviacion_standard/sqrt(n)
+
+extremo_izq_t <- media - error
+extremo_der_t <- media + error
+
+extremo_izq_t
+extremo_der_t
+```
 
 ## 4.3. Responder a las siguientes preguntas: ¿Es más estrecho el intervalo de confianza usando la distribución normal o la distribución t de Student? ¿Por qué? ¿Qué intervalo de confianza crees que es el más adecuado con nuestros datos y por qué? Contestar brevemente.
 
-Es mas estrcho usando la t-student ya que usa el 95%, con nuestros datos la mejor distribucion seria la de 95% ya que nos encontramos con grandes extremos en nuestro dataset.
+Es mas estrcho usando la t-student pero por muy poco.
+
+En el caso de la t-student se suele utilizar cuando hay menos de 30 muestras. Al ser la diferencia minima no importa cual utilicemos.
 
 # 5 Análisis de correlaciones ¿Hay correlación lineal entre salario de los jugadores y los puntos medios por partido?
 
@@ -102,9 +110,61 @@ Vemos como tiene una correlacion leve positiva, en la que como se puede intuir e
 
 ## 6.1. Calculad dos modelos lineales de regresión, donde salario de los jugadores se relaciona con minutos jugados por temporada y puntos medios por partido con constante y sin constante. Usar la función lm de R.
 
-```{r}
+Calculamos con constante y sin constante.
 
+```{r}
+cons_lm <- lm(wage ~ minutes + points, data=X)
+sin_lm <- lm(wage ~ 0 + minutes + points, data=X)
 ```
+
+Mostramos los resultados
+
+```{r}
+cons_lm 
+sin_lm
+```
+
+## 6.2. Mostrad el resultado de los modelos lineales obtenidos, los coeficientes, etc..
+
+Como vemos en la primera con constante tenemos el intercept y en la segunda no
+
+```{r}
+cons_lm 
+sin_lm
+```
+
+
+## 6.3. Estimad el salario que tendría un jugador que anotara 20 puntos en promedio por partido y jugara 2000 minutos por temporada, a partir de los coeficientes del modelo lineal sin constante.
+
+Para ello creamos un nuevo data frame con los parametros del que queremnos predecir
+
+```{r}
+predecir_X <- data.frame(points=c(20),minutes=c(2000))
+predict(sin_lm,predecir_X)
+```
+
+## 6.4. Mostrad el coeficiente de determinación del modelo lineal e interpretad el coeficiente. Realizad este apartado para los dos modelos lineales obtenidos.
+
+Ahora mostramos el coeficiente de determinacion, usando R_squared
+
+```{r}
+summary(cons_lm)$r.squared
+summary(sin_lm)$r.squared
+```
+
+## 6.5. Al realizar un resumen del modelo lineal, se muestran los valores de los coeficientes y para cada coeficiente un valor Pr(>|t|). ¿A qué se refiere este valor y como se interpreta? Realizar la interpretación para los dos modelos lineales.
+
+Sacamos un summary de los dos modelos
+
+```{r}
+summary(cons_lm)
+summary(sin_lm)
+```
+
+
+
+
+
 
 
 
