@@ -91,7 +91,37 @@ summary(myaov)
 
 ## 3.4 Comprobar los cálculos
 
+Calculamos manualmente SSB y SSW
+
+```{r}
+brewinggrouped <- beer %>%
+  group_by(BrewMethod) %>%
+  summarise(x = sum((ABV - mean(ABV)) ^ 2))
+
+SSW <- brewinggrouped %>%
+        summarise(ssw = sum(x))
+
+SSW
+
+SST <- sum (( brewinggrouped$x - mean(brewinggrouped$x)) ^ 2)
+SSB <- SST - SSW
+SSB
+SST
+
+m <- 4
+N <- length(brewinggrouped$BrewMethod)
+F <- (SSB/ (m-1)) / (SSW/(N-m))
+F
+```
+
+
 ## 3.5 Tests a posteriori
+
+Realizamos la prueba de tukey-
+ 
+```{r}
+TukeyHSD(myaov)
+```
 
 # 4 Componentes principales
 
@@ -134,9 +164,14 @@ Vemos como los resultados dan mucho mas bajos, sobre todo en la desviacion stand
 
 ## 4.5 Visualizar el modelo generado
 
-
+Usamos un scatter plot del conjunto para mostrar, en este caso al ser muchos los campos no se puede visualizar de manera correcta.
 
 ```{r}
 pairs(~PC1+PC2+PC3+PC5+PC6+PC7+PC8+PC9+PC10+PC11+PC12+PC13, data=pca_standard$rotation)
 ```
 
+## 4.6 Varianza acumulada
+
+## 4.7 Interpretación
+
+## 4.8 Visualizar la proyección sobre los dos primeros componentes
