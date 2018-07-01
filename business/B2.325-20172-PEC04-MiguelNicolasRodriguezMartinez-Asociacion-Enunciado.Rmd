@@ -1,0 +1,315 @@
+
+---
+title: "PEC4 sobre Asociación"
+author: "UOC - Master BI - Business Analytics (Nombre Estudiante)"
+date: "Mayo del 2018"
+output:
+  html_document:
+    fig_height: 5
+    fig_width: 7
+    number_sections: yes
+    theme: journal
+    toc: yes
+    toc_depth: 2
+  pdf_document:
+    toc: yes
+  word_document: default
+---
+******
+
+
+******
+# Base teórica
+******
+Para realizar la práctica se recomienda la lectura del punto 3.4 del material didáctico. Este punto se centra en la búsqueda de asociaciones las cuales en nuestro caso se darán entre las características de la población adulta de USA.
+
+El algoritmo **apriori** fue diseñado para la búsqueda de asociaciones entre los productos que forman parte de la cesta de la compra en el supermercado, hipermercado o gran superficie. El objetivo era determinar qué productos eran causa de la compra de otros. Sin embargo, el algoritmo **apriori** puede generalizarse para la búsqueda de asociaciones entre cualquier conjunto de items.  
+
+En esta PEC el objetivo será buscar asociaciones y relaciones en un juego de datos sobre la población adulta de USA. Se han identificado una serie de características de la misma y se quiere averiguar si existen relaciones entre ellas.
+
+Para ello utilizaremos el paquete **R** denominado **arules** del que podréis encontrar información extensa en el siguiente enlace https://cran.r-project.org/web/packages/arules/vignettes/arules.pdf  
+
+******
+# Descripción del problema
+******
+Vamos a analizar la relación entre características que definen la población adulta de USA según las siguientes características.  
+
+01. age
+02. workclass  
+03. fnlwgt: final weight
+04. education
+05. education-num
+06. marital-status
+07. occuptaion
+08. relationship  
+09. race  
+10. sex  
+11. capital-gain
+12. capital-loss
+13. hours-per-week  
+14. native-country  
+15. income
+
+Podéis encontrar más información sobre el juego de datos en el siguiente enlace https://archive.ics.uci.edu/ml/datasets/adult
+
+******
+# Cargar el juego de datos
+******
+Un juego de datos para poder ser usado por algoritmos de búsqueda de asociaciones debe tener una estructura de transacciones en la que cada fila represente una transacción, por ejemplo en una cesta de la compra diríamos que cada fila representa una compra.  
+
+En nuestro caso una transacción o fila del juego de datos representa un individuo de la población de USA.  
+
+La generación de reglas de asociación requiere que las características a estudiar sean categóricas y no continuas, por este motivo debemos prever un proceso de conversión de variables continuas en categóricas, para ello nos apoyaremos en la función **R** **cut()**.  
+
+
+```{r,eval=TRUE,echo=TRUE}
+library(arules)
+data("AdultUCI")
+
+# Proceso de categorización de variables continuas
+AdultC <- AdultUCI
+AdultC$age <- cut(AdultUCI$age, c(15,25,30,35,45,55,65,100))
+AdultC$workclass <- AdultUCI$workclass
+AdultC$fnlwgt <- cut(AdultUCI$fnlwgt, c(12200,20000,50000,100000,500000,750000,1000000,1500000))
+AdultC$education <- AdultUCI$education
+AdultC$`education-num` <- cut(AdultUCI$`education-num`, c(1,5,10,15,20))
+AdultC$`marital-status` <- AdultUCI$`marital-status`
+AdultC$occupation <- AdultUCI$occupation
+AdultC$relationship <- AdultUCI$relationship
+AdultC$race <- AdultUCI$race
+AdultC$sex <- AdultUCI$sex
+AdultC$`capital-gain` <- cut(AdultUCI$`capital-gain`, c(0,15000,20000,30000,40000,50000,60000,80000,100000))
+AdultC$`capital-loss` <- cut(AdultUCI$`capital-loss`, c(0,500,1000,2000,3000,4000,5000))
+AdultC$`hours-per-week` <- cut(AdultUCI$`hours-per-week`, c(0,10,20,30,50,60,80,100))
+AdultC$`native-country` <- AdultUCI$`native-country`
+AdultC$income <- AdultUCI$income
+```
+
+
+******
+# Función arules()
+******
+
+En R el juego de datos debe estar en formato **transaction**. Si no lo está, deberemos usar comandos **R** para proceder a su conversión.  
+Observamos que en el proceso de generación de reglas exigimos que un soporte y una confianza mínimas.  
+
+```{r,eval=TRUE,echo=TRUE}
+# Convesión del juego de datos a formato transacción
+Adult = as(AdultC, "transactions")
+
+# Generacón de reglas con soporte y confianza mínimos
+rules = apriori(Adult, parameter=list(support=0.01, confidence=0.7, maxlen=7))
+
+# Listado de reglas obtenidas 
+rules
+```
+
+
+Es importante poder filtrar entre las reglas generadas, porque será tarea del analista identificar las más representativas. Mostramos a continuación formas distintas de filtrado de reglas.  
+
+```{r,eval=TRUE,echo=TRUE}
+# Listamos las 3 reglas con mayor lift
+inspect(head(sort(rules, by="lift"),3));
+
+# Visualizamos la calidad de las reglas generadas 
+head(quality(rules));
+
+# Generamos gráfico de frecuencias por elevación
+plot(quality(rules)$lift,quality(rules)$count)
+```
+
+
+Más técnicas de filtrado de reglas  
+
+```{r,eval=TRUE,echo=TRUE}
+# Extracción de reglas con una confianza superior a 0.8
+subrules = rules[quality(rules)$confidence > 0.8]
+ 
+subrules
+```
+
+Filtramos las 30 reglas con mayor elevación y posteriormente las listamos
+
+```{r,eval=TRUE,echo=TRUE}
+subrules2 = head(sort(rules, by="lift"), 30);
+ 
+subrules2
+inspect(subrules2)
+
+oneRule = sample(rules, 1);
+ 
+inspect(oneRule);
+```
+
+
+******
+# Función eclat()
+******
+
+Una aproximación distinta puede ser usar la función **R** **eclat()** para identificar los valores más significativos de las distintas características
+
+```{r,eval=TRUE,echo=TRUE}
+itemFrequencyPlot(Adult, support = 0.1, cex.names=0.8)
+ 
+# Creamos sets o combinaciones de características según su relevancia.
+fsets = eclat(Adult, parameter = list(support = 0.05), control = list(verbose=FALSE));
+ 
+# Seleccionamos los sets con un solo item o característica
+singleItems = fsets[size(items(fsets)) == 1];
+inspect(singleItems)
+
+singleSupport = quality(singleItems)$support;
+ 
+names(singleSupport) = unlist(LIST(items(singleItems), decode = FALSE));
+ 
+head(singleSupport, n = 5);
+ 
+
+itemsetList = LIST(items(fsets), decode = FALSE);
+ 
+# Determinamos la confianza de cada set
+allConfidence = quality(fsets)$support / sapply(itemsetList, function(x) max(singleSupport[as.character(x)]));
+ 
+quality(fsets) = cbind(quality(fsets), allConfidence);
+ 
+summary(fsets)
+
+```
+
+
+******
+# Preguntas
+******
+
+******
+## Pregunta 01
+******
+Al inicio de la práctica se realiza una tarea de categorización o discretización de las variables continuas del juego de datos AdultUCI.  
+
+El paquete **arules** dispone de la función **discretize()** para proceder a realizar tareas de categorización de variables contínuas.  
+
+Explica qué métodos de discretización acepta esta variable y aplica cada método en la tabla AdultUCI para categorizar sus variables continuas.  
+
+**Atención!** El método "frequency" puede dar el siguiente error "Some breaks are not unique, use fewer breaks for the data".
+Es normal, simplemente reducid el númeo de intervalos.
+
+**Respuesta**
+
+Soporta estos metodos, interval, frequency, cluster y fixed
+
+```{r,eval=TRUE,echo=TRUE}
+AdultUCI_interval <- AdultUCI
+AdultUCI_interval$age <- discretize(AdultUCI_interval$age, method = "interval")
+AdultUCI_interval$fnlwgt <- discretize(AdultUCI_interval$fnlwgt, method = "interval")
+AdultUCI_interval$`education-num` <- discretize(AdultUCI_interval$`education-num`, method = "interval")
+AdultUCI_interval$`capital-gain` <- discretize(AdultUCI_interval$`capital-gain`, method = "interval")
+AdultUCI_interval$`capital-loss` <- discretize(AdultUCI_interval$`capital-loss`, method = "interval")
+AdultUCI_interval$`hours-per-week` <- discretize(AdultUCI_interval$`hours-per-week`, method = "interval")
+
+AdultUCI_frequency <- AdultUCI
+AdultUCI_frequency$age <- discretize(AdultUCI_frequency$age, method = "frequency")
+AdultUCI_frequency$fnlwgt <- discretize(AdultUCI_frequency$fnlwgt, method = "frequency")
+AdultUCI_frequency$`education-num` <- discretize(AdultUCI_frequency$`education-num`, method = "frequency")
+AdultUCI_frequency$`capital-gain` <- discretize(AdultUCI_frequency$`capital-gain`, method = "frequency")
+AdultUCI_frequency$`capital-loss` <- discretize(AdultUCI_frequency$`capital-loss`, method = "frequency")
+AdultUCI_frequency$`hours-per-week` <- discretize(AdultUCI_frequency$`hours-per-week`, method = "frequency")
+
+AdultUCI_cluster <- AdultUCI
+AdultUCI_cluster$age <- discretize(AdultUCI_cluster$age, method = "cluster")
+AdultUCI_cluster$fnlwgt <- discretize(AdultUCI_cluster$fnlwgt, method = "cluster")
+AdultUCI_cluster$`education-num` <- discretize(AdultUCI_cluster$`education-num`, method = "cluster")
+AdultUCI_cluster$`capital-gain` <- discretize(AdultUCI_cluster$`capital-gain`, method = "cluster")
+AdultUCI_cluster$`capital-loss` <- discretize(AdultUCI_cluster$`capital-loss`, method = "cluster")
+AdultUCI_cluster$`hours-per-week` <- discretize(AdultUCI_cluster$`hours-per-week`, method = "cluster")
+
+AdultUCI_fixed <- AdultUCI
+AdultUCI_fixed$age <- discretize(AdultUCI_fixed$age, method = "fixed", categories = c(-Inf,.8,Inf))
+AdultUCI_fixed$fnlwgt <- discretize(AdultUCI_fixed$fnlwgt, method = "fixed", categories = c(-Inf,.8,Inf))
+AdultUCI_fixed$`education-num` <- discretize(AdultUCI_fixed$`education-num`, method = "fixed", categories = c(-Inf,.8,Inf))
+AdultUCI_fixed$`capital-gain` <- discretize(AdultUCI_fixed$`capital-gain`, method = "fixed", categories = c(-Inf,.8,Inf))
+AdultUCI_fixed$`capital-loss` <- discretize(AdultUCI_fixed$`capital-loss`, method = "fixed", categories = c(-Inf,.8,Inf))
+AdultUCI_fixed$`hours-per-week` <- discretize(AdultUCI_fixed$`hours-per-week`, method = "fixed", categories = c(-Inf,.8,Inf))
+```
+
+******
+## Pregunta 02
+******
+1. Lista las 5 reglas de la variable **rules** con más soporte.
+2. Genera un gráfico de frecuencias por soporte.
+3. Comenta 2 reglas
+
+**Respuesta**
+
+```{r,eval=TRUE,echo=TRUE}
+subrules3 <- head(sort(rules, by="support"), 5)
+
+subrules3_inspect <- inspect(subrules3)
+
+plot(quality(rules)$support,quality(rules)$count)
+```
+
+
+
+******
+## Pregunta 03
+******
+1. Investiga el funcionamiento de la función **coverage()** y aplicadlo a la variable **rules**.
+2. Lista las 5 reglas con **coverage** más alto.
+3. Genera un gráfico de frecuencias por **coverage**.
+
+**Respuesta**
+
+La funcion coverage como dice la documentacion de R se calcula con las variables de support y confidence, representa una medida de cuantas veces puede usarse una regla.
+
+```{r,eval=TRUE,echo=TRUE}
+
+quality(rules) <- cbind(quality(rules), coverage = coverage(rules))
+
+subrules3 <- head(sort(rules, by="coverage"), 5)
+
+inspect(subrules3)
+
+plot(quality(rules)$coverage,quality(rules)$count)
+
+```
+
+
+
+******
+## Pregunta 04
+******
+1. A partir de la función **fsets()** genera sets de 2 items o caraterísticas.
+2. A partir del set de 2 items generado, lista las 5 reglas con mayor soporte.
+
+**Respuesta**
+
+```{r,eval=TRUE,echo=TRUE}
+fsets = eclat(Adult, parameter = list(support = 0.05), control = list(verbose=FALSE));
+ 
+# Seleccionamos los sets con un solo item o característica
+twoItems = fsets[size(items(fsets)) == 2];
+inspect(head(sort(rules, by="support"), 5))
+```
+
+
+******
+## Pregunta 05
+******
+Escoje una de las reglas generadas y comenta los valores de soporte, confianza y elevación que tiene asociados.  
+1.  ¿Qué significa cada uno de los 3 conceptos?   
+2.  Aplica cada una de las 3 definiciones a la regla seleccionada   
+
+**Respuesta**
+
+Escogemos la regla:
+{race=White}                   => {native-country=United-States} 0.7881127 0.9217231  1.027076 0.8550428
+
+El support es la frecuencia en la que la regla aparece en nuestro dataset.
+La confienza es cuantas veces se ha encontrado que esta regla es cierta.
+Lift, es la independencia entre estas variables, es decir, 1 son independientes mayor de 1 mas asociacion. Cuanta mayor asociacion, lift, exista en una regla, mejor sera, ya que entendemos que hay esto sera mas facil que ocurra.
+
+Para nuestra regla vemos que el 79% de las veces a aparecido y el 92% de las veces esta regla ha sido true, con un lift de 1.02 significa que estos dos elementos son independientes entre ellos y que no hay mucha asociacion.
+
+```{r,eval=TRUE,echo=TRUE}
+```
+
